@@ -25,11 +25,11 @@ class HIGHSPEEDACTIONGAME_API UGameplayAreaEventManager : public UTickableWorldS
 	GENERATED_BODY()
 
 public:
-	//ゲームクリア用デリゲード
+	//ゲームクリア用デリゲート
 	UPROPERTY(BlueprintAssignable, Category = "Events")
 	FOnBossDead OnBossDead;
 
-	//ボスアクティブになったとき用のデリゲード
+	//ボスアクティブになったとき用のデリゲート
 	UPROPERTY(BlueprintAssignable, Category = "Events")
 	FOnBossActive OnBossActive;
 

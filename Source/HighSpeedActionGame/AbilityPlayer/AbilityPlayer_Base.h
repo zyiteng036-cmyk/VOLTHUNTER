@@ -18,12 +18,14 @@ class HIGHSPEEDACTIONGAME_API UAbilityPlayer_Base : public UGameplayAbility
     GENERATED_BODY()
 
 public:
+    UAbilityPlayer_Base();
+
     virtual void ActivateAbility(const FGameplayAbilitySpecHandle Handle,
         const FGameplayAbilityActorInfo* ActorInfo,
         const FGameplayAbilityActivationInfo ActivationInfo,
         const FGameplayEventData* TriggerEventData) override;
 
-    // 
+    //モンタージュ終了時のコールバック
     UFUNCTION()
     virtual void OnMontageEnded();
 
@@ -43,7 +45,8 @@ public:
 
 
 protected:
-    //
+   
+    //再生する攻撃モンタージュ
     UPROPERTY(EditDefaultsOnly, BlueprintReadOnly, Category = "Attack")
     UAnimMontage* AttackMontage;
 };

@@ -1,7 +1,7 @@
 //担当
 //伊藤直樹
 
-//設定画面ウィジェットクラス
+//ゲーム内のカメラ感度、反転設定、画面の明るさなどのオプションを管理・変更する設定画面のUIウィジェットクラス
 #pragma once
 
 #include "CoreMinimal.h"
@@ -14,16 +14,15 @@ class UCheckBox;
 
 //アニメーションが終了したときのデリゲート
 DECLARE_DYNAMIC_MULTICAST_DELEGATE(FOnSettingsClosedSignature);
-/**
- *
- */
+
 UCLASS()
 class HIGHSPEEDACTIONGAME_API USettingsWidget : public UUserWidget
 {
 	GENERATED_BODY()
 
 protected:
-	virtual void NativeConstruct()override;
+	//ウィジェット構築時の初期化処理
+	virtual void NativeConstruct() override;
 
 public:
 	//上下入力で選択項目を変更する
@@ -34,53 +33,69 @@ public:
 
 	//決定ボタンが押された時
 	void DecisionCurrentSetting();
+
 protected:
+	//選択状態に応じたUIの見た目を更新するBlueprintイベント
 	UFUNCTION(BlueprintImplementableEvent, Category = "UI")
 	void UpdateSelectionUI();
 
 	//アニメーションが終了したら自動で呼ばれる
 	virtual void OnAnimationFinished_Implementation(const UWidgetAnimation* Animation) override;
+
 public:
+	//連続入力状態のリセット
 	void ResetInputState();
 
+	//開くアニメーションの再生
 	void PlayOpenAnimation();
+
+	//閉じるアニメーションの再生
 	void PlayCloseAnimation();
+
+	//アニメーションが再生中かどうかを取得
 	bool GetIsAnimationPlaying() const;
 
-	// コントローラーに通知するためのイベント変数
+	//コントローラーに通知するためのイベント変数
 	UPROPERTY(BlueprintAssignable)
-	FOnSettingsClosedSignature OnSettingsClosedDelegate;
+	FOnSettingsClosedSignature m_OnSettingsClosedDelegate;
+
 public:
-	//カメラ感度
+	//カメラ感度スライダー
 	UPROPERTY(meta = (BindWidget))
-	USlider* CameraSensitivitySlider;
+	USlider* m_CameraSensitivitySlider = nullptr;
 
+	//カメラ感度テキスト
 	UPROPERTY(meta = (BindWidget))
-	UTextBlock* CameraSensitivityText;
+	UTextBlock* m_CameraSensitivityText = nullptr;
 
-	//カメラ反転
+	//カメラX軸反転チェックボックス
 	UPROPERTY(meta = (BindWidget))
-	UCheckBox* CameraInvertXCheckBox;
+	UCheckBox* m_CameraInvertXCheckBox = nullptr;
 
+	//カメラX軸反転テキスト
 	UPROPERTY(meta = (BindWidget))
-	UTextBlock* CameraInvertXText;
+	UTextBlock* m_CameraInvertXText = nullptr;
 
+	//カメラY軸反転チェックボックス
 	UPROPERTY(meta = (BindWidget))
-	UCheckBox* CameraInvertYCheckBox;
+	UCheckBox* m_CameraInvertYCheckBox = nullptr;
 
+	//カメラY軸反転テキスト
 	UPROPERTY(meta = (BindWidget))
-	UTextBlock* CameraInvertYText;
-	
-	//画面の明るさ
-	UPROPERTY(meta = (BindWidget))
-	USlider* ScreenBrightnessSlider;
+	UTextBlock* m_CameraInvertYText = nullptr;
 
-	//アニメーション
+	//画面の明るさスライダー
+	UPROPERTY(meta = (BindWidget))
+	USlider* m_ScreenBrightnessSlider = nullptr;
+
+	//オープンアニメーション
 	UPROPERTY(Transient, meta = (BindWidgetAnim))
-	UWidgetAnimation* OpenAnim;
+	UWidgetAnimation* m_OpenAnim = nullptr;
 
+	//クローズアニメーション
 	UPROPERTY(Transient, meta = (BindWidgetAnim))
-	UWidgetAnimation* CloseAnim;
+	UWidgetAnimation* m_CloseAnim = nullptr;
+
 protected:
 	//現在選択している設定項目のインデックス
 	UPROPERTY(BlueprintReadOnly, Category = "UI")
@@ -91,12 +106,13 @@ protected:
 
 private:
 	//デフォルト値になった時に硬直するタイマー
-	float m_StopCooldown = 0.f;
+	float m_StopCooldown = 0.0f;
+
 	//硬直させる元の値
 	float m_DefaultSensitivity = 0.9f;
 
 	//入力時間を記録
-	float m_LastInputTime = 0.f;
+	float m_LastInputTime = 0.0f;
 
 	//最初の一回目かどうかを判定
 	bool m_IsFirstPress = true;

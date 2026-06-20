@@ -16,11 +16,6 @@ enum class EResultMenuInputType : uint8
 };
 
 
-
-/**
- *
- */
-
 DECLARE_DYNAMIC_MULTICAST_DELEGATE_OneParam(FOnResultMenuInput, EResultMenuInputType, InputType);
 
 UCLASS()

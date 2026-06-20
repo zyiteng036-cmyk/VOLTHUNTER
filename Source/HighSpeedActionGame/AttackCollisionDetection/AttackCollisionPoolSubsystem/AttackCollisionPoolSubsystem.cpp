@@ -13,15 +13,15 @@ bool UAttackCollisionPoolSubsystem::ShouldCreateSubsystem(UObject* Outer) const 
 		return false;
 	}
 
-	if (UWorld* WorldOuter = Cast<UWorld>(Outer))
-	{
-		if (AMyWorldSettings* MyWorldSettings = Cast<AMyWorldSettings>(WorldOuter->GetWorldSettings()))
-		{
-			return MyWorldSettings->m_UseEnemyManager;
-		}
-	}
+	UWorld* WorldOuter = Cast<UWorld>(Outer);
 
-	return false;
+
+	if (!WorldOuter)return false;
+
+	AMyWorldSettings* MyWorldSettings = Cast<AMyWorldSettings>(WorldOuter->GetWorldSettings());
+	if (!MyWorldSettings)return false;
+
+	return MyWorldSettings->m_UseEnemyManager;
 }
 
 void UAttackCollisionPoolSubsystem::Initialize(FSubsystemCollectionBase& Collection) {

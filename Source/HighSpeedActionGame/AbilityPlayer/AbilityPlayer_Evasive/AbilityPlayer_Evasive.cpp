@@ -12,36 +12,41 @@
 
 void UAbilityPlayer_Evasive::ActivateAbility(const FGameplayAbilitySpecHandle Handle, const FGameplayAbilityActorInfo* ActorInfo, const FGameplayAbilityActivationInfo ActivationInfo, const FGameplayEventData* TriggerEventData)
 {
+	//コストやクールダウンの適用
+	if (!CommitAbility(Handle, ActorInfo, ActivationInfo))
+	{
+		EndAbility(Handle, ActorInfo, ActivationInfo, true, true);
+		return;
+	}
 
-
-	UE_LOG(LogTemp, Error, TEXT("m_AbilityPlayer_EvasiveIn"));
 	//Montageが無い場合は終了
 	if (!EvasiveMontage)
 	{
 		EndAbility(Handle, ActorInfo, ActivationInfo, true, false);
-		UE_LOG(LogTemp, Warning, TEXT("Evasive: no montage"));
 		return;
 	}
-	UAbilitySystemComponent* AbilitySystemComp = GetAbilitySystemComponentFromActorInfo();
 
+	//アクター情報の検証
+	if (!ActorInfo || !ActorInfo->AvatarActor.IsValid())
+	{
+		EndAbility(Handle, ActorInfo, ActivationInfo, true, false);
+		return;
+	}
 
-
-	APlayerCharacter* PlayerCharacter = Cast<APlayerCharacter>(ActorInfo->AvatarActor.Get());
-
-	if (!PlayerCharacter)return;
 
 	//Montage再生タスク作成
-	UAbilityTask_PlayMontageAndWait* MontageTask =
-		UAbilityTask_PlayMontageAndWait::CreatePlayMontageAndWaitProxy(this, NAME_None, EvasiveMontage);
+	UAbilityTask_PlayMontageAndWait* MontageTask = UAbilityTask_PlayMontageAndWait::CreatePlayMontageAndWaitProxy(this, NAME_None, EvasiveMontage);
 
-	MontageTask->OnCompleted.AddDynamic(this, &UAbilityPlayer_Evasive::OnMontageEnded);
-	MontageTask->OnInterrupted.AddDynamic(this, &UAbilityPlayer_Evasive::OnMontageEnded);
-	MontageTask->OnCancelled.AddDynamic(this, &UAbilityPlayer_Evasive::OnMontageEnded);
-	MontageTask->OnBlendOut.AddDynamic(this, &UAbilityPlayer_Evasive::OnMontageEnded);
+	if (MontageTask)
+	{
+		MontageTask->OnCompleted.AddDynamic(this, &UAbilityPlayer_Evasive::OnMontageEnded);
+		MontageTask->OnInterrupted.AddDynamic(this, &UAbilityPlayer_Evasive::OnMontageEnded);
+		MontageTask->OnCancelled.AddDynamic(this, &UAbilityPlayer_Evasive::OnMontageEnded);
+		MontageTask->OnBlendOut.AddDynamic(this, &UAbilityPlayer_Evasive::OnMontageEnded);
 
-	//タスクを有効化
-	MontageTask->ReadyForActivation();
-
+		// タスクを有効化
+		MontageTask->ReadyForActivation();
+	}
 }
 
 void UAbilityPlayer_Evasive::OnMontageEnded()
@@ -50,7 +55,8 @@ void UAbilityPlayer_Evasive::OnMontageEnded()
 	//回避終了
 	if (CurrentActorInfo && CurrentActorInfo->AvatarActor.IsValid())
 	{
-		if (APlayerCharacter* PlayerCharacter = Cast<APlayerCharacter>(CurrentActorInfo->AvatarActor.Get()))
+		APlayerCharacter* PlayerCharacter = Cast<APlayerCharacter>(CurrentActorInfo->AvatarActor.Get());
+		if (PlayerCharacter)
 		{
 			if (UPlayer_EvasiveComponent* EvasiveComp = PlayerCharacter->FindComponentByClass<UPlayer_EvasiveComponent>())
 			{
@@ -64,10 +70,11 @@ void UAbilityPlayer_Evasive::OnMontageEnded()
 			{
 				MovementComp->SetCanMovement(true);
 			}
+
+			// 回避中に消していたコリジョンを復帰
 			PlayerCharacter->RevivalCollision();
 		}
 	}
-
 
 	//Abilityを終了
 	EndAbility(CurrentSpecHandle, CurrentActorInfo, CurrentActivationInfo, true, false);
@@ -77,13 +84,15 @@ void UAbilityPlayer_Evasive::OnMontageEnded()
 bool UAbilityPlayer_Evasive::CanActivateAbility(const FGameplayAbilitySpecHandle Handle, const FGameplayAbilityActorInfo* ActorInfo, const FGameplayTagContainer* SourceTags, const FGameplayTagContainer* TargetTags, FGameplayTagContainer* OptionalRelevantTags) const
 {
 	bool bResult = Super::CanActivateAbility(Handle, ActorInfo, SourceTags, TargetTags, OptionalRelevantTags);
-	UE_LOG(LogTemp, Warning, TEXT("CanActivateAbility結果: %s"), bResult ? TEXT("true") : TEXT("false"));
+
+#if !UE_BUILD_SHIPPING
 	if (!bResult && OptionalRelevantTags)
 	{
 		for (const FGameplayTag& Tag : *OptionalRelevantTags)
 		{
-			UE_LOG(LogTemp, Warning, TEXT("起動拒否タグ: %s"), *Tag.ToString());
+			UE_LOG(LogTemp, Warning, TEXT("AbilityPlayer_Evasive Activation Denied by Tag: %s"), *Tag.ToString());
 		}
 	}
+#endif
 	return bResult;
 }

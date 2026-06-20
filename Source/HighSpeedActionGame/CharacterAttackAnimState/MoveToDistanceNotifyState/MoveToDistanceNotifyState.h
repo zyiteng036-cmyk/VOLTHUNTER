@@ -8,7 +8,7 @@
 #include "MoveToDistanceNotifyState.generated.h"
 
 /**
- * 
+ *
  */
 UCLASS()
 class HIGHSPEEDACTIONGAME_API UMoveToDistanceNotifyState : public UAnimNotifyState
@@ -24,6 +24,7 @@ protected:
 	UPROPERTY(EditAnywhere, BlueprintReadWrite, Category = "Distance")
 	float m_Distance = 100.f;//êiÇﬁãóó£
 
+private:
 	float m_Speed = 0.f;
 
 	FVector m_OffsetVelocity = FVector::ZeroVector;

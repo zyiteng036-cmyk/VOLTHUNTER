@@ -13,84 +13,78 @@
 
 void UAbilityPlayer_HeavyAttack::ActivateAbility(const FGameplayAbilitySpecHandle Handle, const FGameplayAbilityActorInfo* ActorInfo, const FGameplayAbilityActivationInfo ActivationInfo, const FGameplayEventData* TriggerEventData)
 {
-
-	//入力の長さによって出るアニメーションが変わる
-	if (APlayerCharacter* PlayerCharacter = Cast<APlayerCharacter>(CurrentActorInfo->AvatarActor.Get()))
-	{
-		if (UPlayer_ElectroGaugeComponent* ElectroComp = PlayerCharacter->FindComponentByClass<UPlayer_ElectroGaugeComponent>())
-		{
-
-			if (UPlayer_AttackComponent* AttackComp = PlayerCharacter->FindComponentByClass<UPlayer_AttackComponent>())
-			{
-
-				if (AttackComp->GetJustEvasiveLongCharge())
-				{
-					SetPlayMontage = HeavyLongkMontage;
-					AttackComp->SetJustEvasiveLongCharge(false);
-				}
-				else
-				{
-					bool bIsOverCharge = ElectroComp->IsOvercharge();
-					bool bIsLongCharge = (AttackComp->GetCurrentHeavyChargeTime() >= PlayerParam.HeavyChargeLong);
-
-					if (bIsLongCharge || bIsOverCharge)
-					{
-						SetPlayMontage = HeavyLongkMontage;
-						PlayerCharacter->SetIsEnhancedAttack(true);
-						PlayerCharacter->SetInvincible(true);
-					}
-					else
-					{
-						SetPlayMontage = HeavyShortMontage;
-					}
-				}
-			}
-		}
-	}
-
-
-
-	//Montageが無い場合は終了
-	if (!SetPlayMontage)
+	//安全確認と早期リターン
+	if (!ActorInfo || !ActorInfo->AvatarActor.IsValid())
 	{
 		EndAbility(Handle, ActorInfo, ActivationInfo, true, false);
 		return;
 	}
 
+	APlayerCharacter* PlayerCharacter = Cast<APlayerCharacter>(ActorInfo->AvatarActor.Get());
+	if (!PlayerCharacter)
+	{
+		EndAbility(Handle, ActorInfo, ActivationInfo, true, false);
+		return;
+	}
 
+	UPlayer_AttackComponent* AttackComp = PlayerCharacter->FindComponentByClass<UPlayer_AttackComponent>();
+	UPlayer_ElectroGaugeComponent* ElectroComp = PlayerCharacter->FindComponentByClass<UPlayer_ElectroGaugeComponent>();
 
-	//Montage再生タスク作成
-	UAbilityTask_PlayMontageAndWait* MontageTask =
-		UAbilityTask_PlayMontageAndWait::CreatePlayMontageAndWaitProxy(this, NAME_None, SetPlayMontage);
+	if (AttackComp && ElectroComp)
+	{
+		//再生するモンタージュの決定
+		if (AttackComp->GetJustEvasiveLongCharge())
+		{
+			//親クラスの変数(AttackMontage)にセットするだけ！
+			AttackMontage = HeavyLongMontage;
+			AttackComp->SetJustEvasiveLongCharge(false);
+		}
+		else
+		{
+			const bool bIsOverCharge = ElectroComp->IsOvercharge();
+			const bool bIsLongCharge = (AttackComp->GetCurrentHeavyChargeTime() >= PlayerParam.HeavyChargeLong);
 
-	MontageTask->OnCompleted.AddDynamic(this, &UAbilityPlayer_HeavyAttack::OnMontageEnded);
-	MontageTask->OnInterrupted.AddDynamic(this, &UAbilityPlayer_HeavyAttack::OnMontageEnded);
-	MontageTask->OnCancelled.AddDynamic(this, &UAbilityPlayer_HeavyAttack::OnMontageEnded);
-	MontageTask->OnBlendOut.AddDynamic(this, &UAbilityPlayer_HeavyAttack::OnMontageEnded);
+			if (bIsLongCharge || bIsOverCharge)
+			{
+				AttackMontage = HeavyLongMontage;
+				PlayerCharacter->SetIsEnhancedAttack(true);
+				PlayerCharacter->SetInvincible(true);
+			}
+			else
+			{
+				AttackMontage = HeavyShortMontage;
+			}
+		}
+	}
 
-	//タスクを有効化
-	MontageTask->ReadyForActivation();
-
+	//ベースクラスの処理を呼ぶ
+	Super::ActivateAbility(Handle, ActorInfo, ActivationInfo, TriggerEventData);
 }
+
 
 //Montage終了時
 void UAbilityPlayer_HeavyAttack::OnMontageEnded()
 {
 
-	if (APlayerCharacter* PlayerCharacter = Cast<APlayerCharacter>(CurrentActorInfo->AvatarActor.Get()))
+	if (CurrentActorInfo && CurrentActorInfo->AvatarActor.IsValid())
 	{
-		if (UPlayer_AttackComponent* AttackComp = PlayerCharacter->FindComponentByClass<UPlayer_AttackComponent>())
+		APlayerCharacter* PlayerCharacter = Cast<APlayerCharacter>(CurrentActorInfo->AvatarActor.Get());
+		if (PlayerCharacter)
 		{
-			AttackComp->SetHeavyAttackStart(false);
-		}
-		if (UPlayer_EvasiveComponent* EvasiveComp = PlayerCharacter->FindComponentByClass<UPlayer_EvasiveComponent>())
-		{
-			EvasiveComp->SetCanEvasive(true);
+			if (UPlayer_AttackComponent* AttackComp = PlayerCharacter->FindComponentByClass<UPlayer_AttackComponent>())
+			{
+				AttackComp->SetHeavyAttackStart(false);
+			}
+			if (UPlayer_EvasiveComponent* EvasiveComp = PlayerCharacter->FindComponentByClass<UPlayer_EvasiveComponent>())
+			{
+				EvasiveComp->SetCanEvasive(true);
+			}
 
+			PlayerCharacter->SetInvincible(false);
+			PlayerCharacter->SetIsEnhancedAttack(false);
 		}
-		PlayerCharacter->SetInvincible(false);
-		PlayerCharacter->SetIsEnhancedAttack(false);
 	}
+
 	//Abilityを終了
 	EndAbility(CurrentSpecHandle, CurrentActorInfo, CurrentActivationInfo, true, false);
 

@@ -12,9 +12,6 @@ FAttackCollisionHandle::FAttackCollisionHandle(UAttackCollisionPoolSubsystem* In
 	}
 }
 
-
-
-
 bool FAttackCollisionHandle::IsValid() const
 {
 	return m_AttackCollisionPoolSubsystem.IsValid() && m_AttackCollisionDetectionInstance.IsValid();
@@ -47,12 +44,14 @@ void FAttackCollisionHandle::OnLifeTimeExpired()
 	Release();
 }
 
-void FAttackCollisionHandle::SetCollisionWorldLocation(const FVector _location) {
+void FAttackCollisionHandle::SetCollisionWorldLocation(const FVector& _location) {
 	if (!m_AttackCollisionDetectionInstance.IsValid())return;
 	m_AttackCollisionDetectionInstance->SetActorLocation(_location);
 }
 
-void FAttackCollisionHandle::Initialize(const UHitJudgmentComponent& _hitJudgmentComponent, const FDamageInfo& _damage, const FVector& _location, const TArray<FString> _tags, const float _radius, const float _activeTime) {
+void FAttackCollisionHandle::Initialize(const UHitJudgmentComponent& _hitJudgmentComponent, const FDamageInfo& _damage, const FVector& _location, const TArray<FString>& _tags, const float _radius, const float _activeTime) {
+	if (!IsValid())return;
+
 	m_AttackCollisionDetectionInstance->SetHitJudgmentComponent(&_hitJudgmentComponent);
 	m_AttackCollisionDetectionInstance->SetDamageInfo(_damage);
 	m_AttackCollisionDetectionInstance->SetActorLocation(_location);

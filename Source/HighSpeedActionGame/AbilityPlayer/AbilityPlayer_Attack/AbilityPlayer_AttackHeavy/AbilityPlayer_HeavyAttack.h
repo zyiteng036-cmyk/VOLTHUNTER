@@ -7,43 +7,34 @@
 
 #include "CoreMinimal.h"
 #include "../../../PlayerParam.h"
-#include "GameplayTagContainer.h"
-#include "Abilities/Tasks/AbilityTask_PlayMontageAndWait.h"
-#include "Abilities/GameplayAbility.h"
+#include "../../AbilityPlayer_Base.h"
 #include "AbilityPlayer_HeavyAttack.generated.h"
 
 /**
  * 
  */
 UCLASS()
-class HIGHSPEEDACTIONGAME_API UAbilityPlayer_HeavyAttack : public UGameplayAbility
+class HIGHSPEEDACTIONGAME_API UAbilityPlayer_HeavyAttack : public UAbilityPlayer_Base
 {
 	GENERATED_BODY()
 public:
-    //
     virtual void ActivateAbility(const FGameplayAbilitySpecHandle Handle,
         const FGameplayAbilityActorInfo* ActorInfo,
         const FGameplayAbilityActivationInfo ActivationInfo,
         const FGameplayEventData* TriggerEventData) override;
 
-    // 
-    UFUNCTION()
-    virtual void OnMontageEnded();
+    virtual void OnMontageEnded() override;
 
 
 protected:
-    // 
 
     //長い入力があったとき
-    UPROPERTY(EditDefaultsOnly, BlueprintReadOnly, Category = "Attack")
-    UAnimMontage* HeavyLongkMontage;
+    UPROPERTY(EditDefaultsOnly, BlueprintReadOnly, Category = "Ability|Attack")
+    UAnimMontage* HeavyLongMontage;
 
-    //短い入力があった時
-    UPROPERTY(EditDefaultsOnly, BlueprintReadOnly, Category = "Attack")
+    // 短い入力時に再生するアニメ
+    UPROPERTY(EditDefaultsOnly, BlueprintReadOnly, Category = "Ability|Attack")
     UAnimMontage* HeavyShortMontage;
-
-    //アニメをセット
-    UAnimMontage* SetPlayMontage;
 
 private:
     FPlayerParam PlayerParam;

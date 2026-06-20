@@ -10,13 +10,14 @@ void UAbilityPlayer_AirAttackLight1::ActivateAbility(const FGameplayAbilitySpecH
 	// ホバリング開始 呼び出し
 	if (ActorInfo && ActorInfo->AvatarActor.IsValid())
 	{
-		if (APlayerCharacter* PlayerCharacter = Cast<APlayerCharacter>(ActorInfo->AvatarActor.Get()))
+		APlayerCharacter* PlayerCharacter = Cast<APlayerCharacter>(ActorInfo->AvatarActor.Get());
+		if (PlayerCharacter)
 		{
-			if (UPlayer_AttackComponent* AttackComp = PlayerCharacter->FindComponentByClass<UPlayer_AttackComponent>())
+			UPlayer_AttackComponent* AttackComp = PlayerCharacter->FindComponentByClass<UPlayer_AttackComponent>();
+			if (AttackComp)
 			{
 				AttackComp->AirAttackStart();
 			}
-
 		}
 	}
 
@@ -26,14 +27,17 @@ void UAbilityPlayer_AirAttackLight1::ActivateAbility(const FGameplayAbilitySpecH
 
 void UAbilityPlayer_AirAttackLight1::OnMontageEnded()
 {
-	// ホバリング終了 呼び出し
+	//ホバリング終了 呼び出し
 	if (CurrentActorInfo && CurrentActorInfo->AvatarActor.IsValid())
 	{
-		if (APlayerCharacter* PlayerCharacter = Cast<APlayerCharacter>(CurrentActorInfo->AvatarActor.Get()))
+		APlayerCharacter* PlayerCharacter = Cast<APlayerCharacter>(CurrentActorInfo->AvatarActor.Get());
+		if (PlayerCharacter)
 		{
-			if (UPlayer_AttackComponent* AttackComp = PlayerCharacter->FindComponentByClass<UPlayer_AttackComponent>())
+			UPlayer_AttackComponent* AttackComp = PlayerCharacter->FindComponentByClass<UPlayer_AttackComponent>();
+			if (AttackComp)
 			{
-				if (!AttackComp->GetNextAttackRequested() || !PlayerCharacter->m_BufferedNextAbility)
+				//コンボが予約されていない場合のみホバリングを終了し落下させる
+				if (!AttackComp->GetNextAttackRequested() || !PlayerCharacter->GetBufferedNextAbility())
 				{
 					AttackComp->AirAttackEnd();
 				}
@@ -41,7 +45,7 @@ void UAbilityPlayer_AirAttackLight1::OnMontageEnded()
 		}
 	}
 
-	// 基底クラスのMontage終了処理・Ability終了処理呼び出し
+	//基底クラスのMontage終了処理・Ability終了処理呼び出し
 	Super::OnMontageEnded();
 }
 

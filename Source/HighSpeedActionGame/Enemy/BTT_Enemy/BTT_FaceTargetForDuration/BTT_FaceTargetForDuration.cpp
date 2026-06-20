@@ -9,11 +9,11 @@
 
 
 UBTT_FaceTargetForDuration::UBTT_FaceTargetForDuration()
-	:FaceTargetForDuration(1.f)
-	, UseActor(nullptr)
+	: UseActor(nullptr)
 	, TargetActor(nullptr)
 	, Timer(0.f)
 	, TargetActorKeyName("TargetActor")
+	, FaceTargetForDuration(1.f)
 {
 	bNotifyTick = true;
 	bNotifyTaskFinished = true;
@@ -45,7 +45,7 @@ void UBTT_FaceTargetForDuration::OnTaskFinished(UBehaviorTreeComponent& OwnerCom
 	TargetActor = nullptr;
 }
 void UBTT_FaceTargetForDuration::TickTask(UBehaviorTreeComponent& OwnerComp, uint8* NodeMemory, float DeltaSeconds) {
-	
+
 	Timer += DeltaSeconds;
 
 	FacingTheTargetActor();
@@ -65,8 +65,8 @@ void UBTT_FaceTargetForDuration::FacingTheTargetActor() {
 	FRotator ThisActorRot = UseActor->GetActorRotation();
 
 	// プレイヤー方向の回転を計算
-	FRotator TargetRot = UKismetMathLibrary::FindLookAtRotation(ThisActorPos,TargetActorPos);
+	FRotator TargetRot = UKismetMathLibrary::FindLookAtRotation(ThisActorPos, TargetActorPos);
 
-	// Yawのみ即時適用（Pitch, Rollは維持）
+	// Yawのみ即時適用
 	UseActor->SetActorRotation(FRotator(ThisActorRot.Pitch, TargetRot.Yaw, ThisActorRot.Roll));
 }

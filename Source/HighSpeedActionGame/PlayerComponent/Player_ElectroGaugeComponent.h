@@ -2,7 +2,6 @@
 //伊藤直樹
 
 //プレイヤー強化ゲージクラス
-
 #pragma once
 
 #include "CoreMinimal.h"
@@ -16,10 +15,9 @@ class APlayerCharacter;
 UENUM(BlueprintType)
 enum class EElectroState : uint8
 {
-	Normal			UMETA(DisplayName = "Normal"),
-	Overcharge		UMETA(DisplayName = "Overcharge"),
+	Normal      UMETA(DisplayName = "Normal"),
+	Overcharge  UMETA(DisplayName = "Overcharge"),
 };
-
 
 UCLASS(ClassGroup = (Custom), meta = (BlueprintSpawnableComponent))
 class HIGHSPEEDACTIONGAME_API UPlayer_ElectroGaugeComponent : public UActorComponent
@@ -27,87 +25,110 @@ class HIGHSPEEDACTIONGAME_API UPlayer_ElectroGaugeComponent : public UActorCompo
 	GENERATED_BODY()
 
 public:
-	// Sets default values for this component's properties
+	//コンストラクタ
 	UPlayer_ElectroGaugeComponent();
 
 protected:
-	// Called when the game starts
+	//ゲーム開始時に呼ばれる処理
 	virtual void BeginPlay() override;
 
 public:
-	// Called every frame
+	//毎フレーム呼ばれる処理
 	virtual void TickComponent(float DeltaTime, ELevelTick TickType, FActorComponentTickFunction* ThisTickFunction) override;
 
 private:
 	//通常時の減少
 	void _updateNormalStateDecay(float DeltaTime);
+
 	//超電力の減少
 	void _updateOverchargeStateDecay(float DeltaTime);
 
 public:
-	//セット
-	void DebugOverCharge();
-
 	//===Get関数===
-	UFUNCTION(BlueprintPure, Category = "Electro")
-	float GetGaugeRate()const;
-	float GetCurrentGauge()const;
+	//ゲージの割合を取得
 	UFUNCTION(BlueprintPure, Category = "ElectroGauge")
-	bool IsOvercharge()const;
-	EElectroState GetElectroState()const;
+	float GetGaugeRate() const;
+
+	//現在のゲージ量を取得
+	UFUNCTION(BlueprintPure, Category = "ElectroGauge")
+	float GetCurrentGauge() const;
+
+	//オーバーチャージ中か判定
+	UFUNCTION(BlueprintPure, Category = "ElectroGauge")
+	bool IsOvercharge() const;
+
+	//現在の電力量ステートを取得
+	UFUNCTION(BlueprintPure, Category = "ElectroGauge")
+	EElectroState GetElectroState() const;
 
 	//===外部通知===
+	//ゲージを加算する
 	void AddElectroGauge(float Value);
+
+	//ゲージを減算する
 	void SubtractionElectoroGauge(float Value);
+
+	//ジャスト回避成功時の処理
 	void OnJustEvasiveSuccess();
 
-public:
 	//リセット関数
 	void ResetGauge();
 
 private:
+	//オーバーチャージ状態へ突入
 	void EnterOvercharge();
+
+	//オーバーチャージ状態から退出
 	void ExitOvercharge();
 
 protected:
-	APlayerCharacter* m_Player;
-
-
-	//Overcharge時にエフェクト
-	UPROPERTY(EditDefaultsOnly, Category = "Electro|Effect")
-	UNiagaraSystem* m_OverchargeEffect;
-
+	//プレイヤーの参照
 	UPROPERTY()
-	UNiagaraComponent* m_OverchargeEffectComp;
+	APlayerCharacter* m_Player = nullptr;
+
+	//オーバーチャージ時に再生するエフェクト
+	UPROPERTY(EditDefaultsOnly, Category = "Electro|Effect")
+	UNiagaraSystem* m_OverchargeEffect = nullptr;
+
+	//生成されたNiagaraComponent
+	UPROPERTY()
+	UNiagaraComponent* m_OverchargeEffectComp = nullptr;
 
 private:
-	UPROPERTY(EditDefaultsOnly, Category = "ElectroGauge")
-	float m_MaxGauge;
+	//===パラメータ===
 
-	UPROPERTY(EditDefaultsOnly, Category = "ElectroGauge")
-	float m_CurrentGauge;
+	//ゲージの最大値
+	UPROPERTY(EditDefaultsOnly, Category = "ElectroGauge", meta = (AllowPrivateAccess = "true"))
+	float m_MaxGauge = 100.0f;
 
-	UPROPERTY(EditDefaultsOnly, Category = "ElectroGauge")
-	float m_NormalDecayRate;
+	//現在のゲージ量
+	UPROPERTY(EditDefaultsOnly, Category = "ElectroGauge", meta = (AllowPrivateAccess = "true"))
+	float m_CurrentGauge = 0.0f;
 
-	UPROPERTY(EditDefaultsOnly, Category = "ElectroGauge")
-	float m_OverChargeDecayRate;
+	//通常時のベース減少速度
+	UPROPERTY(EditDefaultsOnly, Category = "ElectroGauge", meta = (AllowPrivateAccess = "true"))
+	float m_NormalDecayRate = 1.0f;
+
+	//オーバーチャージ中の減少速度
+	UPROPERTY(EditDefaultsOnly, Category = "ElectroGauge", meta = (AllowPrivateAccess = "true"))
+	float m_OverChargeDecayRate = 6.0f;
 
 	//最後にゲージが増えた時刻
-	float m_LastAddGaugeTime;
+	float m_LastAddGaugeTime = 0.0f;
 
 	//減少開始までの猶予時間
-	float m_DecayStartDelay;
+	float m_DecayStartDelay = 4.0f;
 
 	//減少加速
-	float m_DecayAcceleration;
+	float m_DecayAcceleration = 3.0f;
 
 	//減少が始まってからの経過時間
-	float m_DecayElapsedTime;
+	float m_DecayElapsedTime = 0.0f;
 
 	//減少しているか
-	bool m_IsDecaying;
+	bool m_IsDecaying = false;
 
-	UPROPERTY(VisibleInstanceOnly, Category = "ElectroGauge")
+	//現在の電力量ステート
+	UPROPERTY(VisibleInstanceOnly, Category = "ElectroGauge", meta = (AllowPrivateAccess = "true"))
 	EElectroState m_ElectroState = EElectroState::Normal;
 };

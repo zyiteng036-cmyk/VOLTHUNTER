@@ -90,13 +90,19 @@ void AProjectileBase::SetDamageInfo(const FDamageInfo& _damageInfo) {
 	m_DamageInfo = _damageInfo;
 }
 void AProjectileBase::OnCollisionBegin() {
+	if (!m_HitJudgmentComponent) { return; }
+
 	m_HitJudgmentComponent->BeginHitDetection(m_DamageInfo, m_AttackCollisionParam.Radius, m_AttackCollisionParam.RelativeLocation, *this, m_AttackCollisionParam.HitTag, MaxLifeTime);
 	m_HitJudgmentComponent->SetAttackCollisionDetectionVisible(m_AttackCollisionParam.Visible);
 }
 void AProjectileBase::OnCollisionTick() {
+	if (!m_HitJudgmentComponent) { return; }
+
 	m_HitJudgmentComponent->PossibleHitTime(m_AttackCollisionParam.RelativeLocation);
 }
 void AProjectileBase::OnCollisionEnd() {
+	if (!m_HitJudgmentComponent) { return; }
+
 	m_HitJudgmentComponent->EndHitDetection();
 }
 

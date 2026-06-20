@@ -52,7 +52,8 @@ void UEnemyManager::Deinitialize() {
 	m_ActiveEnemies.Empty();
 }
 
-void UEnemyManager::InitializePool() {
+void UEnemyManager::InitializePool(const AEnemyFactory* _factory) {
+	if (!_factory)return;
 
 	if (m_IsPoolCreated) {
 		GEngine->AddOnScreenDebugMessage(-1, 3.f, FColor::Blue, TEXT("The pool is created!!!"));
@@ -62,17 +63,8 @@ void UEnemyManager::InitializePool() {
 	//プール生成Onに
 	m_IsPoolCreated = true;
 
-	//敵生成クラス取得
-	AEnemyFactory* EnemyFactory = Cast<AEnemyFactory>(CGameUtility::GetActorFromTag(GetWorld(), "EnemyFactory"));
 
-	if (!EnemyFactory) {
-		GEngine->AddOnScreenDebugMessage(-1, 3.f, FColor::Blue, TEXT("EnemyFactory:Not Found"));
-	}
-	else {
-		GEngine->AddOnScreenDebugMessage(-1, 3.f, FColor::Blue, TEXT("EnemyFactory:Found!!!"));
-	}
-
-	UDataTable* LocalEnemyDataTable = EnemyFactory->GetEnemyDataToGenerate();
+	UDataTable* LocalEnemyDataTable = _factory->GetEnemyDataToGenerate();
 
 	if (!LocalEnemyDataTable)
 	{
@@ -107,7 +99,7 @@ void UEnemyManager::InitializePool() {
 		}
 
 		//プール生成&敵にパラメーターセット
-		EnemyPool->GeneratePool(EnemyFactory, *Row->EnemyName, Row->PoolSize - SubPoolSize);
+		EnemyPool->GeneratePool(*_factory, *Row->EnemyName, Row->PoolSize - SubPoolSize);
 		EnemyPool->SetEnemyParam(*Row);
 
 		m_EnemyPools.Add(*Row->EnemyName, EnemyPool);
@@ -117,43 +109,15 @@ void UEnemyManager::InitializePool() {
 
 }
 
-void UEnemyManager::ActivateEnemy(const FString _name, const FVector _location, const FRotator _rotation, const FEnemyTypeFlags _enemyFlags) {
+void UEnemyManager::ActivateEnemy(const FString& _name, const FVector& _location, const FRotator& _rotation, const FEnemyTypeFlags& _enemyFlags) {
 	//名前のプールから
 	TObjectPtr<AEnemyBase> NewEnemy = m_EnemyPools[_name].Get()->GetAndActivateEnemy();
-
-
-	NewEnemy->SetActorLocation(_location);
-	NewEnemy->SetActorRotation(_rotation);
-
-	if (_enemyFlags.bIsEventEnemy) {
-		NewEnemy->SetIsEventEnemy(true);
-
-		UEnemyNavigationManager* Subsystem = GetWorld()->GetSubsystem<UEnemyNavigationManager>();
-		if (!Subsystem)return;
-
-		Subsystem->AddChasingEnemy(NewEnemy);
-	}
-
-	if (_enemyFlags.bIsBoss) {
-		NewEnemy->SetIsBoss(true);
-		NewEnemy->HandleBossCase();
-	}
-
-	m_ActiveEnemies.Add(NewEnemy);
-}
-
-void UEnemyManager::ActivateEnemy(const EnemyType _type, const FVector _location, const FRotator _rotation, const FEnemyTypeFlags _enemyFlags) {
-	FString EnemyNama = ConvertEnemyTypeToEnmeyName(_type);
-
-	//名前のプールから
-	TObjectPtr<AEnemyBase> NewEnemy = m_EnemyPools[EnemyNama].Get()->GetAndActivateEnemy();
 
 	if (!IsValid(NewEnemy))return;
 
 	NewEnemy->SetActorLocation(_location);
 	NewEnemy->SetActorRotation(_rotation);
 
-	//イベントの敵ならばフラグを上げる
 	if (_enemyFlags.bIsEventEnemy) {
 		NewEnemy->SetIsEventEnemy(true);
 
@@ -166,14 +130,17 @@ void UEnemyManager::ActivateEnemy(const EnemyType _type, const FVector _location
 	if (_enemyFlags.bIsBoss) {
 		NewEnemy->SetIsBoss(true);
 		NewEnemy->HandleBossCase();
-		NewEnemy->SetActorLocation(_location);
 	}
 
 	m_ActiveEnemies.Add(NewEnemy);
-
 }
 
-const AEnemyBase* UEnemyManager::GetClosestActiveEnemyFromCoordinates(const FVector _location) {
+void UEnemyManager::ActivateEnemy(const EnemyType _type, const FVector& _location, const FRotator& _rotation, const FEnemyTypeFlags& _enemyFlags) {
+	//EnemyType → 名前に変換して使用
+	ActivateEnemy(ConvertEnemyTypeToEnmeyName(_type), _location, _rotation, _enemyFlags);
+}
+
+const AEnemyBase* UEnemyManager::GetClosestActiveEnemyFromCoordinates(const FVector& _location) {
 	float ClosestLentgh = -1.f;
 	int8 ClosestEnemyIndex = -1;
 

@@ -14,6 +14,7 @@ void UANS_GruntGuard_AttackPrepare::NotifyBegin(USkeletalMeshComponent* MeshComp
 	// UŒ‚€”õ’†ƒtƒ‰ƒOtrue
 	m_GruntGuard->SetIsPreparingAttack(true);
 }
+
 void UANS_GruntGuard_AttackPrepare::NotifyEnd(USkeletalMeshComponent* MeshComp, UAnimSequenceBase* Animation, const FAnimNotifyEventReference& EventReference) {
 	Super::NotifyEnd(MeshComp, Animation, EventReference);
 	if (!m_GruntGuard) return;

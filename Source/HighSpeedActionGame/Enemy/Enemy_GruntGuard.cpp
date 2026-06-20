@@ -37,12 +37,7 @@ AEnemy_GruntGuard::AEnemy_GruntGuard()
 void AEnemy_GruntGuard::BeginPlay() {
 	Super::BeginPlay();
 
-	//if (m_AbilitySystemComponent)
-	//{
-	//	if (GuardAbilityClass) {
-	//		m_AbilitySystemComponent->GiveAbility(FGameplayAbilitySpec(GuardAbilityClass, 1, INDEX_NONE, this));
-	//	}
-	//}
+
 
 }
 
@@ -55,7 +50,7 @@ void AEnemy_GruntGuard::Tick(float DeltaTime) {
 }
 
 void AEnemy_GruntGuard::TakeDamage(const FDamageInfo& _damageInfo) {
-	if (!m_IsTakeDamage)return;
+	if (!m_IsTakeDamage || m_IsDying || m_IsDeath)return;
 
 	FDamageInfo damageInfo = _damageInfo;
 
@@ -114,7 +109,10 @@ void AEnemy_GruntGuard::TakeDamage(const FDamageInfo& _damageInfo) {
 void AEnemy_GruntGuard::SetAIControllerIsActive(const bool _isActive) {
 	Super::SetAIControllerIsActive(_isActive);
 
-	AGruntAIController* AI = Cast<AGruntAIController>(GetController());
+	AController* controller = GetController();
+	if (!controller)return;
+
+	AGruntAIController* AI = Cast<AGruntAIController>(controller);
 	if (AI)
 	{
 		AI->SetAIActive(_isActive);

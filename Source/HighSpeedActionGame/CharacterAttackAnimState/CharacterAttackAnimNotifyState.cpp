@@ -5,6 +5,8 @@
 #include "../HitJudgmentComponent/HitJudgmentComponent.h"
 
 void UCharacterAttackAnimNotifyState::NotifyBegin(USkeletalMeshComponent* MeshComp, UAnimSequenceBase* Animation, float TotalDuration, const FAnimNotifyEventReference& EventReference) {
+	Super::NotifyBegin(MeshComp, Animation, TotalDuration);
+
 	if (!MeshComp) return;
 
 	//再生しているActor取得
@@ -14,6 +16,8 @@ void UCharacterAttackAnimNotifyState::NotifyBegin(USkeletalMeshComponent* MeshCo
 	//Actorから目的のコンポーネント取得（
 	UHitJudgmentComponent* HitJudgmentComponen = OwnerActor->FindComponentByClass<UHitJudgmentComponent>();
 	if (!HitJudgmentComponen) return;
+
+	m_CachedHitJudgment = HitJudgmentComponen;
 
 	if (!m_AttackData) {
 		GEngine->AddOnScreenDebugMessage(-1, 60.f, FColor::Red, TEXT("No attack dataset!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!"));
@@ -34,41 +38,43 @@ void UCharacterAttackAnimNotifyState::NotifyBegin(USkeletalMeshComponent* MeshCo
 	DamageInfo.HitStopTime = m_AttackData->HitStopTime;
 
 
-	HitJudgmentComponen->BeginHitDetection(DamageInfo, m_AttackCollisionParam.Radius, m_AttackCollisionParam.RelativeLocation, *OwnerActor,m_AttackCollisionParam.HitTag, TotalDuration);
+	HitJudgmentComponen->BeginHitDetection(DamageInfo, m_AttackCollisionParam.Radius, m_AttackCollisionParam.RelativeLocation, *OwnerActor, m_AttackCollisionParam.HitTag, TotalDuration);
 	if (m_AttackCollisionParam.Visible) {
 		HitJudgmentComponen->SetAttackCollisionDetectionVisible(true);
 	}
 
 }
 void UCharacterAttackAnimNotifyState::NotifyTick(USkeletalMeshComponent* MeshComp, UAnimSequenceBase* Animation, float FrameDeltaTime, const FAnimNotifyEventReference& EventReference) {
+	Super::NotifyTick(MeshComp, Animation, FrameDeltaTime, EventReference);
+
 	if (!MeshComp) return;
 
 	// 再生しているActor取得
 	AActor* OwnerActor = MeshComp->GetOwner();
 	if (!OwnerActor) return;
 
-	// Actorから目的のコンポーネント取得
-	UHitJudgmentComponent* HitJudgmentComponen = OwnerActor->FindComponentByClass<UHitJudgmentComponent>();
-	if (!HitJudgmentComponen) return;
+	if (!m_CachedHitJudgment) return;
 
-	HitJudgmentComponen->PossibleHitTime(m_AttackCollisionParam.RelativeLocation);
+	m_CachedHitJudgment->PossibleHitTime(m_AttackCollisionParam.RelativeLocation);
 
 }
 void UCharacterAttackAnimNotifyState::NotifyEnd(USkeletalMeshComponent* MeshComp, UAnimSequenceBase* Animation, const FAnimNotifyEventReference& EventReference) {
+	Super::NotifyEnd(MeshComp, Animation);
+
 	if (!MeshComp) return;
 
 	// 再生しているActor取得
 	AActor* OwnerActor = MeshComp->GetOwner();
 	if (!OwnerActor) return;
 
-	// Actorから目的のコンポーネント取得
-	UHitJudgmentComponent* HitJudgmentComponen = OwnerActor->FindComponentByClass<UHitJudgmentComponent>();
-	if (!HitJudgmentComponen) return;
+	if (!m_CachedHitJudgment) return;
 
-	HitJudgmentComponen->EndHitDetection();
+	m_CachedHitJudgment->EndHitDetection();
 
 	if (m_AttackCollisionParam.Visible) {
-		HitJudgmentComponen->SetAttackCollisionDetectionVisible(false);
+		m_CachedHitJudgment->SetAttackCollisionDetectionVisible(false);
 	}
+
+	m_CachedHitJudgment = nullptr;
 }
 

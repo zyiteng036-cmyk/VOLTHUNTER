@@ -9,18 +9,20 @@
 
 void UAbilityPlayer_Damage::EndAbility(const FGameplayAbilitySpecHandle Handle, const FGameplayAbilityActorInfo* ActorInfo, const FGameplayAbilityActivationInfo ActivationInfo, bool bReplicateEndAbility, bool bWasCancelled)
 {
-    if (ActorInfo && ActorInfo->AvatarActor.IsValid())
-    {
-        if (APlayerCharacter* PlayerCharacter = Cast<APlayerCharacter>(ActorInfo->AvatarActor.Get()))
-        {
-            if (UPlayer_AttackComponent* AttackComp = PlayerCharacter->FindComponentByClass<UPlayer_AttackComponent>())
-            {
-                AttackComp->SetCanAttack(true);
-            }
-            PlayerCharacter->SetIsDamage(false);
-        }
-    }
+	if (ActorInfo && ActorInfo->AvatarActor.IsValid())
+	{
+		APlayerCharacter* PlayerCharacter = Cast<APlayerCharacter>(ActorInfo->AvatarActor.Get());
+		if (PlayerCharacter)
+		{
+			if (UPlayer_AttackComponent* AttackComp = PlayerCharacter->FindComponentByClass<UPlayer_AttackComponent>())
+			{
+				//”í’e‚ªI‚í‚Á‚½‚çÄ‚ÑUŒ‚‰Â”\‚É
+				AttackComp->SetCanAttack(true); 
+			}
 
-    Super::EndAbility(Handle, ActorInfo, ActivationInfo, bReplicateEndAbility, bWasCancelled);
+			PlayerCharacter->SetIsDamage(false);
+		}
+	}
 
+	Super::EndAbility(Handle, ActorInfo, ActivationInfo, bReplicateEndAbility, bWasCancelled);
 }

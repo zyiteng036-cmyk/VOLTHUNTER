@@ -4,10 +4,6 @@
 #include "../AttackCollisionDetection/AttackCollisionHandle/AttackCollisionHandle.h"
 #include "../AttackCollisionDetection/AttackCollisionPoolSubsystem/AttackCollisionPoolSubsystem.h"
 
-namespace {
-	constexpr int8 PoolSize = 10;
-}
-
 
 // Sets default values for this component's properties
 UHitJudgmentComponent::UHitJudgmentComponent()
@@ -29,7 +25,6 @@ void UHitJudgmentComponent::BeginPlay()
 
 
 void UHitJudgmentComponent::BeginHitDetection(FDamageInfo& _damageinfo, const float _radius, FVector& _relativeLocation, const AActor& _actor, const TArray<FString>& _tag, const float _activeTime) {
-
 
 	m_CollisionDetectionUser = &_actor;
 
@@ -62,10 +57,6 @@ void UHitJudgmentComponent::EndHitDetection() {
 void UHitJudgmentComponent::SetAttackCollisionDetectionVisible(const bool _isVisible) {
 	if (!m_CollisionHandle.IsValid()) return;
 	m_CollisionHandle.SetVisible(_isVisible);
-}
-
-void UHitJudgmentComponent::SetRadius(const float _radius) {
-
 }
 
 void UHitJudgmentComponent::SetLocationRelativeToActorRotation(const FVector _relativeLocation) {

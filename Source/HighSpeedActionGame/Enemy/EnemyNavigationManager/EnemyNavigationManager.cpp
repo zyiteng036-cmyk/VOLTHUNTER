@@ -47,14 +47,13 @@ void UEnemyNavigationManager::Deinitialize() {
 	}
 
 	m_ChasingEnemies.Empty();
+
 }
 
 void UEnemyNavigationManager::Tick(float DeltaTime) {
 	Super::Tick(DeltaTime);
 
-	if (bTickEnabled) {
-		SetChasingEnemiesTargetLocations();
-	}
+	SetChasingEnemiesTargetLocations();
 }
 
 void UEnemyNavigationManager::AddChasingEnemy(AEnemyBase* _chasingEnemy) {
@@ -90,7 +89,10 @@ void UEnemyNavigationManager::SetChasingEnemiesTargetLocations() {
 
 	//ƒvƒŒƒCƒ„[‚ªnullptr‚È‚çŒŸõ
 	if (!PlayerChara) {
-		APlayerController* PC = GetWorld()->GetFirstPlayerController();
+		UWorld* World = GetWorld();
+		if (!World)return;
+
+		APlayerController* PC = World->GetFirstPlayerController();
 		if (!PC)return;
 
 		PlayerChara = PC->GetPawn();

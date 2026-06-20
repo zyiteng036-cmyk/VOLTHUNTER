@@ -6,11 +6,7 @@
 #include "../EnemyFactory/EnemyFactory.h"
 
 
-void UEnemyPool::GeneratePool(AEnemyFactory* _enemyFactiry, const FString _name, const int _poolSize) {
-	if (!_enemyFactiry) {
-		GEngine->AddOnScreenDebugMessage(-1, 3.f, FColor::Red, TEXT("Not Generate Pool!!!!!"));
-		return;
-	}
+void UEnemyPool::GeneratePool(const AEnemyFactory& _enemyFactiry, const FString _name, const int _poolSize) {
 
 	FVector GenerateLocation = FVector::ZeroVector;
 	FRotator GenerateRotation = FRotator::ZeroRotator;
@@ -22,7 +18,7 @@ void UEnemyPool::GeneratePool(AEnemyFactory* _enemyFactiry, const FString _name,
 
 	for (int i = 0; i < _poolSize; ++i) {
 		//“G¶¬
-		TObjectPtr<AEnemyBase> NewEnemy = _enemyFactiry->CreateEnemy(GenerateWorld, _name, GenerateLocation, GenerateRotation);
+		TObjectPtr<AEnemyBase> NewEnemy = _enemyFactiry.CreateEnemy(GenerateWorld, _name, GenerateLocation, GenerateRotation);
 
 		if (!NewEnemy) {
 			GEngine->AddOnScreenDebugMessage(-1, 3.f, FColor::Red, _name + TEXT("Can not Create!!!"));

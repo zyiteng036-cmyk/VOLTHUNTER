@@ -13,6 +13,8 @@
 #include "Kismet/GameplayStatics.h"
 
 void UDashAnimNotifyState::NotifyBegin(USkeletalMeshComponent* MeshComp, UAnimSequenceBase* Animation, float TotalDuration) {
+	Super::NotifyBegin(MeshComp, Animation, TotalDuration);
+
 	if (!MeshComp) return;
 
 	ACharacter* Character = Cast<ACharacter>(MeshComp->GetOwner());
@@ -54,8 +56,10 @@ void UDashAnimNotifyState::NotifyBegin(USkeletalMeshComponent* MeshComp, UAnimSe
 	CachedNotifySubsystem->OnJustEvasiveOccurred.AddDynamic(this, &UDashAnimNotifyState::OnJustEvasiveOccurred);
 }
 void UDashAnimNotifyState::NotifyTick(USkeletalMeshComponent* MeshComp, UAnimSequenceBase* Animation, float DeltaTime) {
+	Super::NotifyTick(MeshComp, Animation, DeltaTime);
 
 	if (!CachedCharacter.IsValid()) return;
+
 	if (m_HasStopped) return;
 
 	if (m_IsJustEvasion) {
@@ -80,6 +84,8 @@ void UDashAnimNotifyState::NotifyTick(USkeletalMeshComponent* MeshComp, UAnimSeq
 }
 
 void UDashAnimNotifyState::NotifyEnd(USkeletalMeshComponent* MeshComp, UAnimSequenceBase* Animation) {
+	Super::NotifyEnd(MeshComp, Animation);
+
 	if (!CachedCharacter.IsValid()) return;
 
 	UCharacterMovementComponent* MoveComp = CachedCharacter->GetCharacterMovement();
@@ -131,6 +137,7 @@ bool UDashAnimNotifyState::IsWallInFront()const {
 
 	for (int32 i = 0; i < NumTraces; ++i)
 	{
+		//左右なので2で割る
 		bool IsLeft = i % 2 == 0;
 		float Angle = (i / 2 + i % 2) * ConeHalfAngleDegrees;
 

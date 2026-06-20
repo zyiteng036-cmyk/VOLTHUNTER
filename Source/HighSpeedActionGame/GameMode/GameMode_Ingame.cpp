@@ -36,6 +36,7 @@ void AGameMode_Ingame::BeginPlay()
 		break;
 	}
 
+	//バインド
 	if (UGameplayAreaEventManager* Manager = GetWorld()->GetSubsystem<UGameplayAreaEventManager>())
 	{
 		Manager->OnBossDead.AddDynamic(this, &AGameMode_Ingame::OnGameClear);
@@ -43,7 +44,6 @@ void AGameMode_Ingame::BeginPlay()
 		Manager->OnBossActive.AddDynamic(this, &AGameMode_Ingame::PlayBossSequenceIfAvailable);
 		Manager->OnBeginPlay();
 	}
-
 
 }
 
@@ -57,13 +57,7 @@ void AGameMode_Ingame::RespawnPlayer(APlayerCharacter* Player)
 		BGMManager->PlayNormalBGM();
 	}
 
-	Player->SetActorTransform(
-		RespawnTransform,
-		false,
-		nullptr,
-		ETeleportType::TeleportPhysics
-	);
-
+	Player->SetActorTransform(RespawnTransform, false, nullptr, ETeleportType::TeleportPhysics);
 	Player->OnRespawn();
 }
 
@@ -78,14 +72,14 @@ void AGameMode_Ingame::RequestRespawn(APlayerCharacter* Player)
 
 	FTimerHandle RespawnTimerHandle;
 
-	// 3秒後に復帰
+	//タイマーでリスポーンを遅延実行
 	GetWorldTimerManager().SetTimer(
 		RespawnTimerHandle,
 		[this, Player]()
 		{
 			RespawnPlayer(Player);
 		},
-		5.0f,
+		RespawnWaitTime,
 		false
 	);
 

@@ -16,8 +16,6 @@ UCLASS()
 class HIGHSPEEDACTIONGAME_API AEnemy_Grunt : public AEnemyBase
 {
 	GENERATED_BODY()
-
-
 public:
 
 	AEnemy_Grunt();

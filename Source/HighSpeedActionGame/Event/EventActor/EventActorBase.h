@@ -37,6 +37,4 @@ protected:
 	UPROPERTY(VisibleAnywhere)
 	TObjectPtr<UStaticMeshComponent> m_VisualMesh;
 
-
-
 };

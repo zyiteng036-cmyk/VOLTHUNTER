@@ -1,5 +1,5 @@
 // 佐々木奏太担当
-//指定時間ターゲットの方向向くBTT（補間なし）
+// 指定時間ターゲットの方向向くBTT（補間なし）
 
 #pragma once
 
@@ -26,15 +26,20 @@ protected:
 	//ターゲットの方向向く
 	void FacingTheTargetActor();
 
-	AActor* UseActor;//使用者のポインタ
-	const AActor* TargetActor;//向くターゲットのポインタ
+	//使用者のポインタ
+	AActor* UseActor;
 
-	float Timer;//タイマー
+	//向くターゲットのポインタ
+	const AActor* TargetActor;
+
+	//タイマー
+	float Timer;
+
 
 	UPROPERTY(EditAnywhere, Category = "Timer")
 	FName TargetActorKeyName;
 
-	//向く時間
+	//ターゲットの方向を向く時間
 	UPROPERTY(EditAnywhere, BlueprintReadWrite, Category = "Timer")
 	float FaceTargetForDuration;
 };

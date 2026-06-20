@@ -88,13 +88,6 @@ void AEnemyBase::BeginPlay()
 		}
 	}
 
-	//if (m_AbilitySystemComponent)
-	//{
-	//	if (DamageAbilityClass) {
-	//		m_AbilitySystemComponent->GiveAbility(FGameplayAbilitySpec(DamageAbilityClass, 1, INDEX_NONE, this));
-	//	}
-
-	//}
 }
 
 // Called every frame
@@ -125,12 +118,6 @@ void AEnemyBase::Tick(float DeltaTime)
 			OnDamageEnd();
 		}
 	}
-
-	{
-		FVector Velocity = GetVelocity();
-		float Speed = UKismetMathLibrary::VSize(Velocity);
-	}
-
 }
 
 void AEnemyBase::SetActive(const bool _isActive) {
@@ -201,7 +188,7 @@ void AEnemyBase::SetEnemyActiveMoveComponent(const bool _isActive) {
 bool AEnemyBase::GetBoolBBIsTakingDamage()const {
 	AAIController* AIController = Cast<AAIController>(GetController());
 
-	if (AIController)return false;
+	if (!AIController)return false;
 
 	UBlackboardComponent* BlackboardComp = AIController->GetBlackboardComponent();
 	if (!BlackboardComp)return false;
@@ -217,7 +204,7 @@ bool AEnemyBase::GetBoolBBIsTakingDamage()const {
 void AEnemyBase::SetEnemyParam(FEnemyDataBase _enemyData) {
 	m_EnemyParam.m_Hp = _enemyData.HP;
 	m_EnemyParam.m_MaxHp = _enemyData.HP;
-	m_EnemyParam.AttackPower = _enemyData.AttackPower;
+	m_EnemyParam.m_AttackPower = _enemyData.AttackPower;
 	m_EnemyParam.m_WalkSpeed = _enemyData.WalkSpeed;
 	GetCharacterMovement()->MaxWalkSpeed = _enemyData.WalkSpeed;
 	m_EnemyParam.m_DashSpeed = _enemyData.DashSpeed;
@@ -326,29 +313,25 @@ void AEnemyBase::OnDying() {
 		AIController->StopMovement();//移動止める
 	}
 
-	if (m_EnemyTypeFlags.bIsEventEnemy) {
-		UWorld* World = GetWorld();
-		if (World)
+	if (!m_EnemyTypeFlags.bIsEventEnemy) return;
+
+	UWorld* World = GetWorld();
+	if (!World) return;
+
+	UGameplayAreaEventManager* AreaEventMng = World->GetSubsystem<UGameplayAreaEventManager>();
+	if (!AreaEventMng) return;
+
+	if (m_EnemyTypeFlags.bIsBoss)
+	{
+		AreaEventMng->EventBossEnemyDeath();
+	}
+	else
+	{
+		AreaEventMng->EventEnemyDeath();
+
+		if (UEnemyNavigationManager* NavMng = World->GetSubsystem<UEnemyNavigationManager>())
 		{
-			{
-				UGameplayAreaEventManager* Subsystem = World->GetSubsystem<UGameplayAreaEventManager>();
-				if (m_EnemyTypeFlags.bIsBoss) {
-					Subsystem->EventBossEnemyDeath();
-					return;
-				}
-				if (Subsystem)
-				{
-					Subsystem->EventEnemyDeath();
-				}
-			}
-
-			{
-				UEnemyNavigationManager* Subsystem = World->GetSubsystem<UEnemyNavigationManager>();
-				if (Subsystem) {
-					Subsystem->RemoveChasingEnemy(this);
-				}
-			}
-
+			NavMng->RemoveChasingEnemy(this);
 		}
 	}
 }
@@ -360,14 +343,13 @@ void AEnemyBase::BlowEnemy(const FVector& _blowVector, const float _blowScale) {
 }
 
 void AEnemyBase::SetOpacity(const float alpha) {
-	for (int32 i = 0; i < m_MaterialInstanceDynamics.Num(); ++i) {
+	for (int32 i = 0; i < m_MaterialInstanceDynamics.Num(); ++i) 
+	{
 		if (!m_MaterialInstanceDynamics[i])continue;
 		m_MaterialInstanceDynamics[i]->SetScalarParameterValue(FName("Opacity"), alpha);
 	}
-
-
-
 }
+
 void AEnemyBase::ResetParam() {
 	m_EnemyParam.m_Hp = m_EnemyParam.m_MaxHp;
 	m_Opacity = 1.f;

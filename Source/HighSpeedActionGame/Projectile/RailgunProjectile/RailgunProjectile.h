@@ -8,13 +8,13 @@
 #include "RailgunProjectile.generated.h"
 
 /**
- * 
+ *
  */
 UCLASS()
 class HIGHSPEEDACTIONGAME_API ARailgunProjectile : public AProjectileBase
 {
 	GENERATED_BODY()
-	
+
 public:
 	// Sets default values for this actor's properties
 	ARailgunProjectile();
@@ -30,7 +30,7 @@ public:
 protected:
 
 	UPROPERTY(VisibleAnywhere)
-	UNiagaraComponent* m_RailgunBottom;
+	TObjectPtr<UNiagaraComponent> m_RailgunBottom;
 
 	FVector m_StartLocation;
 };

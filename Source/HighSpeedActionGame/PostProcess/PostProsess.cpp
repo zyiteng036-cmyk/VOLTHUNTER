@@ -1,51 +1,59 @@
-// Fill out your copyright notice in the Description page of Project Settings.
-
-
 #include "PostProsess.h"
 #include "Kismet/GameplayStatics.h"
 #include "Components/PostProcessComponent.h"
 #include "GameFramework/Actor.h"
 
-//探すタグの名前を定数にしておく
-const FName EFFECT_TAG_NAME = FName("PostProsess");
+namespace PostProcessConstants
+{
+	//探すタグの名前を定数にしておく
+	const FName EffectTagName = FName("PostProsess");
+	//配列の先頭要素にアクセスするためのマジックナンバー排除用定数
+	constexpr int32 FirstElementIndex = 0;
+}
 
-void UPostProsess::SetPostProsessActive(bool _Active)
+//外部からポストプロセスの有効・無効を切り替える
+void UPostProsess::SetPostProsessActive(bool bActive)
 {
 	//Actorを取得（キャッシュにあればそれを使う）
 	AActor* TargetActor = FindPostProsessActor();
 
+	//対象のアクターが有効かチェック
 	if (TargetActor)
 	{
 		//ポストプロセスコンポーネントを探して切り替える
 		if (UPostProcessComponent* PP = TargetActor->FindComponentByClass<UPostProcessComponent>())
 		{
-			PP->bEnabled = _Active;
+			//コンポーネントの有効状態を設定
+			PP->bEnabled = bActive;
 		}
 	}
 }
 
+//レベル内から対象のアクターを検索する
 AActor* UPostProsess::FindPostProsessActor()
 {
-	if (CachedEffectActor.IsValid())
+	//すでにキャッシュされている場合はキャッシュを返す
+	if (m_CachedEffectActor.IsValid())
 	{
-		return CachedEffectActor.Get();
+		return m_CachedEffectActor.Get();
 	}
 
+	//ワールドインスタンスの有効性チェック
 	UWorld* World = GetWorld();
 	if (!World) return nullptr;
 
 	//タグを使ってレベル内を検索する
 	TArray<AActor*> FoundActors;
-	UGameplayStatics::GetAllActorsWithTag(World, EFFECT_TAG_NAME, FoundActors);
+	UGameplayStatics::GetAllActorsWithTag(World, PostProcessConstants::EffectTagName, FoundActors);
 
-	if (FoundActors.Num() > 0)
+	//アクターが見つかったかチェック
+	if (!FoundActors.IsEmpty())
 	{
 		//見つかったらキャッシュする
-		CachedEffectActor = FoundActors[0];
-		return CachedEffectActor.Get();
+		m_CachedEffectActor = FoundActors[PostProcessConstants::FirstElementIndex];
+		return m_CachedEffectActor.Get();
 	}
 
 	//見つからなかった場合
-	UE_LOG(LogTemp, Warning, TEXT("ScreenEffectManager: Actor with tag 'BlackWhite' not found!"));
 	return nullptr;
 }

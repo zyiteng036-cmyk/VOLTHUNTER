@@ -19,8 +19,6 @@ void AEnemyFactory::BeginPlay()
 {
 	Super::BeginPlay();
 
-
-	//ゲームインスタンス取得
 	UWorld* World = GetWorld();
 
 	if (!World) return;
@@ -30,34 +28,32 @@ void AEnemyFactory::BeginPlay()
 
 	if (EnemyManager) {
 		//プールの初期化
-		EnemyManager->InitializePool();
+		EnemyManager->InitializePool(this);
 	}
 
-	this->Destroy();
+	Destroy();
 }
 
 // Called every frame
 void AEnemyFactory::Tick(float DeltaTime)
 {
 	Super::Tick(DeltaTime);
-
-
 }
 
-TObjectPtr<AEnemyBase> AEnemyFactory::CreateEnemy(UWorld* World, FString EnemyName, const FVector& Location, const FRotator& Rotation) {
+TObjectPtr<AEnemyBase> AEnemyFactory::CreateEnemy(UWorld* _world, const FString& _enemyName, const FVector& _location, const FRotator& _rotation)const {
 	AEnemyBase* Result = nullptr;
 
 	FActorSpawnParameters SpawnParams;
 	SpawnParams.SpawnCollisionHandlingOverride = ESpawnActorCollisionHandlingMethod::AlwaysSpawn;
 
-	if (EnemyName == "Enemy_1") {
-		Result = World->SpawnActor<AEnemyBase>(Enemy_GruntClass, Location, Rotation, SpawnParams);
+	if (_enemyName == "Enemy_1") {
+		Result = _world->SpawnActor<AEnemyBase>(Enemy_GruntClass, _location, _rotation, SpawnParams);
 	}
-	else if (EnemyName == "Enemy_2") {
-		Result = World->SpawnActor<AEnemyBase>(Enemy_GruntGuardClass, Location, Rotation, SpawnParams);
+	else if (_enemyName == "Enemy_2") {
+		Result = _world->SpawnActor<AEnemyBase>(Enemy_GruntGuardClass, _location, _rotation, SpawnParams);
 	}
-	else if (EnemyName == "TrojanHorse") {
-		Result = World->SpawnActor<AEnemyBase>(Enemy_TrojanHouseClass, Location, Rotation, SpawnParams);
+	else if (_enemyName == "TrojanHorse") {
+		Result = _world->SpawnActor<AEnemyBase>(Enemy_TrojanHorseClass, _location, _rotation, SpawnParams);
 	}
 
 	if (!Result)
@@ -69,8 +65,4 @@ TObjectPtr<AEnemyBase> AEnemyFactory::CreateEnemy(UWorld* World, FString EnemyNa
 	}
 
 	return TObjectPtr<AEnemyBase>(Result);
-}
-
-UDataTable* AEnemyFactory::GetEnemyDataToGenerate() {
-	return m_EnemyDataToGenerate;
 }

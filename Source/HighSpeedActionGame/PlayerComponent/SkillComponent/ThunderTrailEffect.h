@@ -1,8 +1,7 @@
 //担当
 //伊藤直樹
 
-//スキルのエフェクト管理クラス
-
+//霹靂一閃風スキルのエフェクト管理クラス
 #pragma once
 
 #include "CoreMinimal.h"
@@ -16,38 +15,52 @@ UCLASS()
 class HIGHSPEEDACTIONGAME_API AThunderTrailEffect : public AActor
 {
 	GENERATED_BODY()
-	
-public:	
-	// Sets default values for this actor's properties
+
+public:
+	//コンストラクタ
 	AThunderTrailEffect();
 
 protected:
-	// Called when the game starts or when spawned
+	//ゲーム開始時に呼ばれる処理
 	virtual void BeginPlay() override;
 
-public:	
-	// Called every frame
+public:
+	//毎フレーム呼ばれる処理
 	virtual void Tick(float DeltaTime) override;
 
+	//エフェクトのフェードアウト
 	UFUNCTION(BlueprintCallable, Category = "Effect")
 	void BeginFadeOut();
 
 protected:
+	//ナイアガラコンポーネント
 	UPROPERTY(VisibleAnywhere, BlueprintReadOnly, Category = "Effect")
-	UNiagaraComponent* NiagaraComp;
+	UNiagaraComponent* m_NiagaraComp = nullptr;
 
+	//エフェクト調整用パラメータ
+	//スケールXを計算する際の基準となる長さ
 	UPROPERTY(EditDefaultsOnly, Category = "Effect Setup")
-	float BaseEffectLength = 10.0f;
+	float m_BaseEffectLength = 10.0f;
 
+	//エフェクトの太さ
 	UPROPERTY(EditDefaultsOnly, Category = "Effect Setup")
-	float ThicknessScale = 0.1f;
+	float m_ThicknessScale = 0.1f;
 
-	// 始点座標
-	FVector StartLocation;
+	//スキル終了時エフェクトが細くなって消えていく速度
+	UPROPERTY(EditDefaultsOnly, Category = "Effect|Fade")
+	float m_FadeOutInterpSpeed = 10.0f;
 
-	// 最初の向き
-	FRotator FixedRotation;
+	//フェードアウト開始からActorが完全に削除されるまでの時間(秒)
+	UPROPERTY(EditDefaultsOnly, Category = "Effect|Fade")
+	float m_FadeOutLifeSpan = 0.5f;
 
 private:
-	bool bIsFinished = false;
+	//フェードアウト処理中か
+	bool m_IsFinished = false;
+
+	//始点座標
+	FVector m_StartLocation = FVector::ZeroVector;
+
+	//最初の向き
+	FRotator m_FixedRotation = FRotator::ZeroRotator;
 };

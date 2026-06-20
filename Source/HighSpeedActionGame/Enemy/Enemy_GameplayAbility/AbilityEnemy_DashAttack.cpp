@@ -11,8 +11,8 @@
 UAbilityEnemy_DashAttack::UAbilityEnemy_DashAttack()
 	:AttackMontage(nullptr)
 	, DashVector(FVector::ZeroVector)
-	, DashDuration(2.f)
 	, DashStrength(1200.f)
+	, DashDuration(2.f)
 {
 
 }

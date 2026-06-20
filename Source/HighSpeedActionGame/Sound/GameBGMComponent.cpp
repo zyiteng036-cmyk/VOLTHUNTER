@@ -40,10 +40,10 @@ void UGameBGMComponent::StopBGM()
 
 void UGameBGMComponent::PlayBGM(USoundBase* NewSound)
 {
-	// ‰¹‚ªÝ’è‚³‚ê‚Ä‚¢‚È‚¢‚È‚ç‰½‚à‚µ‚È‚¢
+	//‰¹‚ªÝ’è‚³‚ê‚Ä‚¢‚È‚¢‚È‚ç‰½‚à‚µ‚È‚¢
 	if (!NewSound) return;
 
-	// ¡–Â‚Á‚Ä‚¢‚é‰¹‚Æ“¯‚¶‚È‚ç–³Ž‹i˜A‘Å‘Îôj
+	//¡–Â‚Á‚Ä‚¢‚é‰¹‚Æ“¯‚¶‚È‚ç–³Ž‹
 	if (CurrentAudioComponent && CurrentAudioComponent->GetSound() == NewSound && CurrentAudioComponent->IsPlaying())
 	{
 		return;

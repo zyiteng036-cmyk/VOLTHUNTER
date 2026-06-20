@@ -1,4 +1,5 @@
-// Fill out your copyright notice in the Description page of Project Settings.
+// 担当佐々木奏太
+//攻撃判定クラスをプレイヤーように強化攻撃を判断できるように変更
 
 #pragma once
 

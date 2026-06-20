@@ -13,7 +13,6 @@
 #include "AttackCollisionDetection.generated.h"
 
 
-
 class UStaticMeshComponent;
 class UHitJudgmentComponent;
 
@@ -61,7 +60,7 @@ protected:
 	UPROPERTY(VisibleAnywhere)
 	TObjectPtr<USphereComponent> m_HitSphere;
 
-	//アクティブ
+	//アクティブかどうか
 	UPROPERTY(VisibleAnywhere)
 	bool m_IsActive;
 

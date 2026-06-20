@@ -1,7 +1,7 @@
 //担当
 //伊藤直樹
 
-//カメラの距離などを管理するハンドラー
+//プレイヤーのアクション(ダッシュ等)や画面端への移動(オートフレーミング)に合わせてカメラを動的に制御するクラス
 
 #pragma once
 
@@ -15,16 +15,14 @@ class UCameraComponent;
 class APlayerCharacter;
 class APlayerController;
 class UPlayer_MovementComponent;
-/**
- * 
- */
+
 UCLASS()
 class HIGHSPEEDACTIONGAME_API UCameraActionHandler : public UObject
 {
 	GENERATED_BODY()
-	
+
 public:
-	//初期化
+	//初期化処理
 	void Initialize(APlayerCharacter* InPlayer, APlayerController* InController,
 		USpringArmComponent* InSpringArm, UCameraComponent* InCamera,
 		UPlayer_MovementComponent* InMovementComp);
@@ -32,44 +30,40 @@ public:
 	//毎フレームの更新
 	void UpdateActionCamera(float DeltaTime);
 
-	//パラメータ設定用（ComponentのPlayerParamから値をコピーしてくる）
+	//パラメータ設定用(ComponentのPlayerParamから値をコピーしてくる)
 	void SetupParams(float InDefaultLength, float InDefaultFOV,
 		float InDashStartLength, float InDashStartFOV,
 		float InDashMidLength, float InDashMidFOV);
 
 private:
-	//オートフレーミング計算（privateに隠蔽）
+	//オートフレーミング計算(privateに隠蔽)
 	float GetAutoFramingOffset(float DeltaTime);
 
 private:
 	//参照ポインタ
 	UPROPERTY()
-	APlayerCharacter* m_Player;
+	TWeakObjectPtr<APlayerCharacter> m_Player = nullptr;
 
 	UPROPERTY()
-	APlayerController* m_PlayerController;
+	TWeakObjectPtr<APlayerController> m_PlayerController = nullptr;
 
 	UPROPERTY()
-	USpringArmComponent* m_SpringArm;
+	TWeakObjectPtr<USpringArmComponent> m_SpringArm = nullptr;
 
 	UPROPERTY()
-	UCameraComponent* m_Camera;
+	TWeakObjectPtr<UCameraComponent> m_Camera = nullptr;
 
 	UPROPERTY()
-	UPlayer_MovementComponent* m_MovementComponent;
+	TWeakObjectPtr<UPlayer_MovementComponent> m_MovementComponent = nullptr;
 
-	//--- 内部ステート変数 ---
-	float m_AutoFramingOffset;
+	//内部ステート変数
+	float m_AutoFramingOffset = 0.0f;
 
-	//--- パラメータ (Componentから受け取る) ---
-	float p_DefaultArmLength;
-	float p_DefaultFOV;
-	float p_DashStartArmLength;
-	float p_DashStartFOV;
-	float p_DashMidArmLength;
-	float p_DashMidFOV;
-
-	//定数（必要ならこれもSetupParamsで受け取れるようにする）
-	const float c_FramingSafeZone = 0.2f;
-	const float c_MaxFramingZoom = 800.f;
+	//パラメータ(Componentから受け取る)
+	float m_DefaultArmLength = 300.0f;
+	float m_DefaultFOV = 90.0f;
+	float m_DashStartArmLength = 0.0f;
+	float m_DashStartFOV = 0.0f;
+	float m_DashMidArmLength = 0.0f;
+	float m_DashMidFOV = 0.0f;
 };

@@ -10,7 +10,6 @@
 
 namespace {
 	constexpr float ShortDistanceLength = 600.f;
-	constexpr int8 MaxAttackCount = 4;
 	constexpr int8 MaxShortDistanceActionCount = 2;
 	constexpr int8 MaxLongDistanceActionCount = 2;
 }
@@ -50,20 +49,20 @@ void UBTT_DecideTrojanHorseBehavior::JudgmentDecideTrojanHorseBehavior(AAIContro
 
 	if (Distance <= ShortDistanceLength) {
 		if (ShortDistanceAttackCount % MaxShortDistanceActionCount == 0) {
-			_nextState = 0;
+			_nextState = static_cast<int32>(ETrojanHorseBehaviorState::ShortAttack_A);
 		}
 		else if (ShortDistanceAttackCount % MaxShortDistanceActionCount == 1) {
-			_nextState = 1;
+			_nextState = static_cast<int32>(ETrojanHorseBehaviorState::ShortAttack_B);
 		}
-		++ShortDistanceAttackCount;
+		ShortDistanceAttackCount = (ShortDistanceAttackCount + 1) % MaxShortDistanceActionCount;
 	}
 	else {
 		if (LongDistanceAttackCount % MaxLongDistanceActionCount == 0) {
-			_nextState = 2;
+			_nextState = static_cast<int32>(ETrojanHorseBehaviorState::LongAttack_A);
 		}
 		else if (LongDistanceAttackCount % MaxLongDistanceActionCount == 1) {
-			_nextState = 3;
+			_nextState = static_cast<int32>(ETrojanHorseBehaviorState::LongAttack_B);
 		}
-		++LongDistanceAttackCount;
+		LongDistanceAttackCount = (LongDistanceAttackCount + 1) % MaxLongDistanceActionCount;
 	}
 }

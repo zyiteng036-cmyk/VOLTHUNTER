@@ -13,6 +13,7 @@
 class UHitJudgmentComponent;
 class UProjectileMovementComponent;
 class UNiagaraComponent;
+
 UCLASS()
 class HIGHSPEEDACTIONGAME_API AProjectileBase : public AActor
 {
@@ -55,9 +56,8 @@ protected:
 	UPROPERTY(VisibleAnywhere, Category = Movement)
 	TObjectPtr<UProjectileMovementComponent> m_ProjectileMovementComponent;
 
-	// ヘッダーファイル
 	UPROPERTY(VisibleAnywhere)
-	UNiagaraComponent* m_NiagaraComp;
+	TObjectPtr<UNiagaraComponent> m_NiagaraComp;
 
 	UPROPERTY(EditAnywhere, BlueprintReadWrite, Category = "Projectile")
 	float m_TimeUntilDestroyed;

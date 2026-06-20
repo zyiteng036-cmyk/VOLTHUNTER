@@ -1,5 +1,6 @@
 ﻿//佐々木奏太担当
 // 敵基底クラス
+
 #pragma once
 
 #include "CoreMinimal.h"
@@ -20,6 +21,8 @@ class UHitStopComponent;
 class UHitJudgmentComponent;
 class ASplinePatrolActor;
 
+
+//敵の基本パラメーター
 USTRUCT(BlueprintType)
 struct FEnemyParam
 {
@@ -30,7 +33,7 @@ struct FEnemyParam
 	UPROPERTY(EditAnywhere, BlueprintReadWrite, Category = "Enemy")
 	int64 m_MaxHp = 0;
 	UPROPERTY(EditAnywhere, BlueprintReadWrite, Category = "Enemy")
-	int64 AttackPower = 0;
+	int64 m_AttackPower = 0;
 	UPROPERTY(EditAnywhere, BlueprintReadWrite, Category = "Enemy")
 	float m_WalkSpeed = 0.f;
 	UPROPERTY(EditAnywhere, BlueprintReadWrite, Category = "Enemy")
@@ -54,7 +57,6 @@ public:
 protected:
 	// Called when the game starts or when spawned
 	virtual void BeginPlay() override;
-
 public:
 	// Called every frame
 	virtual void Tick(float DeltaTime) override;
@@ -81,16 +83,14 @@ public:
 	bool GetIsEventEnemy() { return m_EnemyTypeFlags.bIsEventEnemy; }
 	bool GetIsBossEnemy() { return m_EnemyTypeFlags.bIsBoss; }
 	uint8 GetBBCurrentState(const FName _keyName = "EnemyState");
-	bool GetBoolBBIsTakingDamage()const;								
-	float GetWarpOffsetDistance()const { return m_WarpOffsetDistance; }	
+	bool GetBoolBBIsTakingDamage()const;
+	float GetWarpOffsetDistance()const { return m_WarpOffsetDistance; }
 
-	//死亡したか
 	UFUNCTION(BlueprintCallable, Category = "Enemy")
-	bool GetIsDeath()const { return m_IsDeath; }
+	bool GetIsDeath()const { return m_IsDeath; }//死亡したか
 
-	//やられたかどうか
 	UFUNCTION(BlueprintCallable, Category = "Enemy")
-	bool GetIsDying()const { return m_IsDying; }
+	bool GetIsDying()const { return m_IsDying; }//やられたかどうか
 
 	//ダメージインターフェース
 	virtual void TakeDamage(const FDamageInfo& _damageInfo)override;

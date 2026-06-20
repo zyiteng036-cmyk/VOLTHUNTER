@@ -16,18 +16,29 @@ void UMoveToDistanceNotifyState::NotifyBegin(USkeletalMeshComponent* MeshComp, U
 	m_OffsetVelocity = m_CachedCharacter->GetCharacterMovement()->Velocity;
 	m_ForwardVector = m_CachedCharacter->GetActorForwardVector();
 
+	//0œŽZ‚ðÈ‚­
+	if (FMath::IsNearlyZero(TotalDuration))
+	{
+		m_CachedCharacter.Reset();
+		return;
+	}
+
 	m_Speed = m_Distance / TotalDuration;
 
 }
 
 void UMoveToDistanceNotifyState::NotifyTick(USkeletalMeshComponent* MeshComp, UAnimSequenceBase* Animation, float DeltaTime)
 {
+	Super::NotifyTick(MeshComp, Animation, DeltaTime);
+
 	if (!m_CachedCharacter.IsValid())return;
-	m_CachedCharacter->GetCharacterMovement()->Velocity = m_Speed * m_ForwardVector* CGameUtility::GetFpsCorrection(DeltaTime);
+	m_CachedCharacter->GetCharacterMovement()->Velocity = m_Speed * m_ForwardVector * CGameUtility::GetFpsCorrection(DeltaTime);
 }
 
 void UMoveToDistanceNotifyState::NotifyEnd(USkeletalMeshComponent* MeshComp, UAnimSequenceBase* Animation)
 {
+	Super::NotifyEnd(MeshComp, Animation);
+
 	if (!m_CachedCharacter.IsValid())return;
 
 	m_CachedCharacter->GetCharacterMovement()->Velocity = m_OffsetVelocity;

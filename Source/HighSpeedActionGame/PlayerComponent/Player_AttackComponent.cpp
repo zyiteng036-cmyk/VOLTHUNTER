@@ -1,6 +1,3 @@
-// Fill out your copyright notice in the Description page of Project Settings.
-
-
 #include "Player_AttackComponent.h"
 #include "Components/CapsuleComponent.h"
 #include "Player_EvasiveComponent.h"
@@ -12,156 +9,135 @@
 #include "Camera/CameraComponent.h"
 #include "GameFramework/CharacterMovementComponent.h"
 
-
-// Sets default values for this component's properties
-UPlayer_AttackComponent::UPlayer_AttackComponent()
-	:m_Player(nullptr)
-	, m_MovementComponent(nullptr)
-	, m_EvasiveComponent(nullptr)
-	, m_CameraComponent(nullptr)
-	, m_ElectroComponent(nullptr)
-	, m_CanAttack(true)
-	, m_ComboIndex(0)
-	, m_NextAttackRequested(false)
-	, m_CanBufferAttack(false)
-	, m_IsAirAttackStart(false)
-	, m_HasAttackTargetLocation(false)
-	, m_MoveStep(0.f)
-	, m_IsAirDashAttack(false)
-	, m_IsAirFallAttack(false)
-	, m_IsAirFallCharging(false)
-	, m_IsHeavyCharging(false)
-	, m_HeavyChargeTime(0.f)
-	, m_AirFallChargeTime(0.f)
-	, m_HeavyAttackStart(false)
-	, m_JumpStartZ(0.f)
-	, m_CanAirAttack(false)
-	, m_JustEvasiveLongCharge(false)
-	, m_AttackTargetLocation(FVector::ZeroVector)
-{
-	// Set this component to be initialized when the game starts, and to be ticked every frame.  You can turn these features
-	// off to improve performance if you don't need them.
-	PrimaryComponentTick.bCanEverTick = true;
-
-	// ...
+//===マジックナンバー排除用の定数定義===
+namespace {
+	//間合い詰め（ステップ）が完了したと判定するための残り距離の閾値
+	constexpr float StopDistanceThreshold = 5.0f;
+	//空中強攻撃（たたき落とし）発動時に、一度軽く浮き上がるためのZ軸上昇速度
+	constexpr float AirFallRiseVelocityZ = 400.0f;
 }
 
+//コンストラクタ
+UPlayer_AttackComponent::UPlayer_AttackComponent()
+{
+	//コンポーネントがゲーム開始時に初期化され、毎フレームTick処理が走るようにフラグを設定する
+	PrimaryComponentTick.bCanEverTick = true;
+}
 
-// Called when the game starts
+//ゲーム開始時
 void UPlayer_AttackComponent::BeginPlay()
 {
 	Super::BeginPlay();
 
+	//オーナーであるプレイヤーキャラクターを取得し、依存する各種コンポーネントをキャッシュしておく
+	//※毎フレームの取得コストを下げるための処理
 	m_Player = Cast<APlayerCharacter>(GetOwner());
-	if (!m_Player)		return;
+	if (!m_Player) return;
 
 	m_MovementComponent = m_Player->FindComponentByClass<UPlayer_MovementComponent>();
-	if (!m_MovementComponent)return;
+	if (!m_MovementComponent) return;
 
 	m_EvasiveComponent = m_Player->FindComponentByClass<UPlayer_EvasiveComponent>();
-	if (!m_EvasiveComponent)return;
+	if (!m_EvasiveComponent) return;
 
 	m_CameraComponent = m_Player->FindComponentByClass<UPlayer_CameraComponent>();
-	if (!m_CameraComponent)return;
+	if (!m_CameraComponent) return;
 
 	m_ElectroComponent = m_Player->FindComponentByClass<UPlayer_ElectroGaugeComponent>();
-	if (!m_ElectroComponent)return;
-
-	// ...
-
+	if (!m_ElectroComponent) return;
 }
 
-
-// Called every frame
+//毎フレーム
 void UPlayer_AttackComponent::TickComponent(float DeltaTime, ELevelTick TickType, FActorComponentTickFunction* ThisTickFunction)
 {
 	Super::TickComponent(DeltaTime, TickType, ThisTickFunction);
-	_updateAttackHeavy(DeltaTime);
 
+	//強攻撃の溜め時間の計測・処理の更新
+	_updateAttackHeavy(DeltaTime);
+	//ジャンプ時の高さに基づく空中攻撃の解禁判定の更新
 	_updateAirAttackUnlock();
-	// ...
 }
 
 void UPlayer_AttackComponent::_updateAttackHeavy(float DeltaTime)
 {
-	//===地上の溜め===
+	//===地上の溜め攻撃フェーズ===
 	if (m_IsHeavyCharging)
 	{
 		m_HeavyChargeTime += DeltaTime;
 
-		//最大溜め時間
-		m_HeavyChargeTime = FMath::Min(m_HeavyChargeTime, PlayerParam.HeavyChargeMaxTime);
-
+		//上限を超えないようにパラメーターの最大溜め時間で制限(クランプ)をかける
+		m_HeavyChargeTime = FMath::Min(m_HeavyChargeTime, m_PlayerParam.HeavyChargeMaxTime);
 		return;
 	}
 
-
+	//以降は空中強攻撃（たたき落とし）発動時のみ実行する
 	if (!m_IsAirFallAttack) return;
 
-	// === 溜めフェーズ ===
+	//===空中強攻撃の滞空(溜め)フェーズ===
 	if (m_IsAirFallCharging)
 	{
 		m_AirFallChargeTime += DeltaTime;
 
-		if (m_AirFallChargeTime >= PlayerParam.AirFallChargeDuration)
+		//指定の滞空時間を過ぎたら落下フェーズへ移行するためフラグを折る
+		if (m_AirFallChargeTime >= m_PlayerParam.AirFallChargeDuration)
 		{
 			m_IsAirFallCharging = false;
 		}
 		return;
 	}
 
-	// === 叩きつけフェーズ ===
-	if (UCharacterMovementComponent* MoveComp =
-		m_Player->GetCharacterMovement())
+	//===空中強攻撃の落下フェーズ===
+	if (UCharacterMovementComponent* MoveComp = m_Player->GetCharacterMovement())
 	{
-		// 真下のみ
-		MoveComp->Velocity =
-			FVector(0.f, 0.f, -PlayerParam.AirFallSpeed);
+		//XY軸の移動を殺し、真下に向かって指定速度で急降下させる
+		MoveComp->Velocity = FVector(0.f, 0.f, -m_PlayerParam.AirFallSpeed);
 	}
-
 }
 
 void UPlayer_AttackComponent::_updateAirAttackUnlock()
 {
+	//ジャンプ中でない、あるいは既に解禁済みの場合は処理をスキップ
 	if (!IsJumping()) return;
 	if (m_CanAirAttack) return;
 
+	//ジャンプを開始したZ座標からの相対的な上昇量を計算
 	const float CurrentZ = m_Player->GetActorLocation().Z;
 	const float DeltaZ = CurrentZ - m_JumpStartZ;
 
-	if (DeltaZ >= PlayerParam.AirAttackMinHeight)
+	//設定された最低高度に達した場合に空中攻撃の入力を解禁する
+	if (DeltaZ >= m_PlayerParam.AirAttackMinHeight)
 	{
 		m_CanAirAttack = true;
 	}
 }
 
-//弱攻撃
+//弱攻撃の入力処理
 void UPlayer_AttackComponent::Input_AttackLight(const FInputActionValue& Value)
 {
-	if (!m_CanAttack)return;
+	//システム的に攻撃が許可されていない場合は弾く
+	if (!m_CanAttack) return;
 
-	//攻撃入力を受け付けるか
-	if (!CanAcceptAttackInput())return;
+	//現在の状態（回避中・既に攻撃中など）から入力を受け付けるか判定
+	if (!CanAcceptAttackInput()) return;
 
-	//ダッシュ終了
+	//攻撃開始に伴い、進行中のダッシュ状態を強制終了する
 	m_MovementComponent->EndDash();
 
-
-	//空中攻撃
+	//===空中での弱攻撃処理===
 	if (IsJumping())
 	{
 		if (!m_CanAirAttack)
 		{
-			// 高さ不足 → 何も起きない
+			//高度が足りていない場合は発動させない
 			return;
 		}
 
-		//空中弱１
+		//アビリティが設定されていれば空中弱攻撃1段目を発動
 		if (m_Player->m_AbilityPlayer_AirAttackLight)
 		{
 			bool AirAttackLight = m_Player->GetAbilitySystemComponent()->TryActivateAbilityByClass(m_Player->m_AbilityPlayer_AirAttackLight);
 
-			//空中攻撃の挙動
+			//発動に成功したら空中攻撃開始フラグを立てる
 			if (AirAttackLight)
 			{
 				m_IsAirAttackStart = true;
@@ -170,80 +146,82 @@ void UPlayer_AttackComponent::Input_AttackLight(const FInputActionValue& Value)
 		return;
 	}
 
-	if (!m_Player->GetCharacterMovement()->IsMovingOnGround())return;
+	//===地上での弱攻撃処理===
+	//完全に接地していない場合は弾く
+	if (!m_Player->GetCharacterMovement()->IsMovingOnGround()) return;
 
-	//攻撃開始
+	//攻撃ステートへ移行
 	m_IsAttack = true;
-	//m_EvasiveComponent->SetCanEvasive(false);
 
+	//ジャスト回避直後、または強化攻撃状態であれば専用のワープ攻撃へ派生
 	if (m_EvasiveComponent->GetIsJustEvasive() || m_Player->GetIsEnhancedAttack()) {
 		JustEvasiveAttack();
 	}
 
-	// コンボ予約受付中かチェック
+	//===コンボの先行入力（バッファ）処理===
+	//現在攻撃モーション中で、次の入力が許可されている期間の場合
 	if (m_CanBufferAttack)
 	{
-		// すでに次の攻撃が予約済みであれば、これ以上何もしない
+		//すでに次のコンボが予約済みなら重複して予約しない
 		if (m_NextAttackRequested) return;
 
-		// 現在1段目の攻撃中なら、2段目を予約する
+		//現在1段目を実行中なら2段目のアビリティを予約セット
 		if (m_ComboIndex == 1)
 		{
 			m_Player->m_BufferedNextAbility = m_Player->m_AbilityPlayer_AttackLight02;
 			m_NextAttackRequested = true;
-			m_ComboIndex = 2; // 次に発動するのは2段目
+			m_ComboIndex = 2; //次に発動するコンボ段数を更新
 		}
-		// 現在2段目の攻撃中なら、3段目を予約する
+		//現在2段目を実行中なら3段目のアビリティを予約セット
 		else if (m_ComboIndex == 2)
 		{
 			m_Player->m_BufferedNextAbility = m_Player->m_AbilityPlayer_AttackLight03;
 			m_NextAttackRequested = true;
-			m_ComboIndex = 0; // 3段目でコンボ終了（またはループ）のためリセット
+			m_ComboIndex = 0; //3段目でコンボが終了するためインデックスをリセット
 		}
-
 		return;
 	}
 
-	//予約できない（コンボ中ではない）場合は弱攻撃1段目を発動
+	//コンボ継続中ではない（初撃の）場合は弱攻撃1段目を直接発動する
 	if (m_Player->m_AbilityPlayer_AttackLight01)
 	{
-		m_ComboIndex = 1; // 1段目を発動したことを記録
+		m_ComboIndex = 1; //1段目を発動したことを記録
 		m_Player->GetAbilitySystemComponent()->TryActivateAbilityByClass(m_Player->m_AbilityPlayer_AttackLight01);
 	}
 }
 
+//強攻撃の入力処理
 void UPlayer_AttackComponent::Input_AttackHeavy(const FInputActionValue& Value)
 {
-	if (!m_CanAttack)return;
+	if (!m_CanAttack) return;
 
-
-	//攻撃入力を受け付けるか
-	if (!CanAcceptAttackInput())return;
+	//攻撃を受け付けない状態、または既に別の攻撃モーション中なら弾く
+	if (!CanAcceptAttackInput()) return;
 	if (m_IsAttack) return;
 
-	
-
+	//アクション実行をプレイヤー本体へ通知
 	m_Player->OnActionCommitted(EPlayerActionCommit::OtherAttack);
 
-	//ダッシュ終了
+	//ダッシュ終了および回避の禁止
 	m_MovementComponent->EndDash();
 	m_EvasiveComponent->SetCanEvasive(false);
 
-	//空中攻撃
+	//===空中での強攻撃処理===
 	if (IsJumping())
 	{
 		if (!m_CanAirAttack)
 		{
-			// 高さ不足 → 何も起きない
+			//高度不足のため発動不可
 			return;
 		}
-		//空中弱１
+
+		//アビリティが設定されていれば発動を試みる
 		if (m_Player->m_AbilityPlayer_AirAttackHeavy)
 		{
-			bool AirAttackLight = m_Player->GetAbilitySystemComponent()->TryActivateAbilityByClass(m_Player->m_AbilityPlayer_AirAttackHeavy);
+			bool AirAttackHeavy = m_Player->GetAbilitySystemComponent()->TryActivateAbilityByClass(m_Player->m_AbilityPlayer_AirAttackHeavy);
 
-			//空中攻撃強の挙動
-			if (AirAttackLight)
+			//発動成功時、たたき落とし専用の落下処理を開始する
+			if (AirAttackHeavy)
 			{
 				AirFallAttack();
 				m_IsAirAttackStart = true;
@@ -252,224 +230,237 @@ void UPlayer_AttackComponent::Input_AttackHeavy(const FInputActionValue& Value)
 		return;
 	}
 
-	if (!m_Player->GetCharacterMovement()->IsMovingOnGround())return;
+	//===地上での強攻撃処理===
+	if (!m_Player->GetCharacterMovement()->IsMovingOnGround()) return;
 
-	//ジャスト回避中に強攻撃入力されたら即ロング
+	//ジャスト回避からの派生の場合、即座に最大溜め（ロング）状態へ移行させるフラグを立てる
 	if (m_EvasiveComponent && m_EvasiveComponent->GetIsJustEvasive())
 	{
 		m_JustEvasiveLongCharge = true;
 	}
 
+	//溜め計測の初期化と開始
 	m_IsHeavyCharging = true;
 	m_HeavyChargeTime = 0.f;
 
+	//まだ強攻撃が開始されていなければ、溜め用のアビリティを起動する
 	if (m_Player->m_AbilityPlayer_AttackHeavyCharge && !m_HeavyAttackStart)
 	{
-		//溜め開始
-		// 長押し強攻撃
 		m_Player->GetAbilitySystemComponent()->TryActivateAbilityByClass(m_Player->m_AbilityPlayer_AttackHeavyCharge);
 	}
 }
 
-//溜め離したとき
+//強攻撃の溜め入力解放（ボタンを離した）時の処理
 void UPlayer_AttackComponent::Completed_AttackHeavy(const FInputActionValue& Value)
 {
-	if (!GetCanAttack())return;
+	if (!GetCanAttack()) return;
 
+	//カメラ揺れなどの演出が残っていれば終了させる
 	if (m_CameraComponent)
 	{
 		m_CameraComponent->CameraShakEnd();
 	}
 
-	if (!m_IsHeavyCharging)return;
+	//溜め中でなければ処理しない（単発押しや既に解放済みの場合など）
+	if (!m_IsHeavyCharging) return;
 
-
+	//溜め状態を解除し、強攻撃の実行フェーズへ移行
 	m_IsHeavyCharging = false;
 	m_IsAttack = false;
 	m_HeavyAttackStart = true;
-	//m_Player->SetIsEnhancedAttack(true);
 
+	//ジャスト回避派生による即ロングチャージ要求があればワープ攻撃処理を挟む
 	if (m_JustEvasiveLongCharge)
 	{
 		JustEvasiveAttack();
 	}
 
-	//長押し強攻撃
+	//溜め解放に紐づく実際のアタックアビリティを発動
 	m_Player->GetAbilitySystemComponent()->TryActivateAbilityByClass(m_Player->m_AbilityPlayer_AttackHeavy);
 
-
+	//次回の溜めに備えて時間をリセット
 	m_HeavyChargeTime = 0.f;
 }
 
-//ジャスト回避攻撃
+//ジャスト回避成功時専用のワープ攻撃処理
 void UPlayer_AttackComponent::JustEvasiveAttack()
 {
+	//UI演出の非表示
 	m_EvasiveComponent->HideJustEvasiveUI();
 
-	// まずAActorとして取得
+	//回避対象となった攻撃の主（アタッカー）を取得
 	const AActor* AttackerActor = m_Player->GetJustEvasive_Attacker();
 	if (!IsValid(AttackerActor)) return;
 
-	// AEnemyBase型にキャスト（変換）して、専用の距離関数を呼べるようにする
+	//距離の取得など固有関数を呼ぶためAEnemyBaseにキャスト
 	const AEnemyBase* TargetEnemy = Cast<AEnemyBase>(AttackerActor);
-	if (!TargetEnemy) return; 
+	if (!TargetEnemy) return;
 
-	//無敵状態
+	//ワープ攻撃中は無敵状態を付与する
 	m_Player->SetInvincible(true);
-	// 敵の位置
+
+	//自機と対象の座標を取得
 	FVector AttackerLocation = TargetEnemy->GetActorLocation();
 	FVector PlayerLocation = m_Player->GetActorLocation();
 
-	// プレイヤーから敵への向き（方向ベクトル）を計算
+	//プレイヤーから敵へ向かう方向ベクトルを算出
 	FVector DirectionToEnemy = (AttackerLocation - PlayerLocation).GetSafeNormal();
 
-	// 高さは無視して水平方向のみの向きにする場合（推奨）
+	//空中にワープするのを防ぐため、方向ベクトルのZ軸を潰して水平にする
 	DirectionToEnemy.Z = 0.f;
 	DirectionToEnemy.Normalize();
 
+	//敵側で定義されている「接近時の適切な距離」を取得
 	float WarpDist = TargetEnemy->GetWarpOffsetDistance();
 
-	// 目標地点の計算
+	//敵の位置から、プレイヤーの方向へ適切な距離だけ戻した位置を目標座標とする
 	FVector TargetLocation = AttackerLocation - (DirectionToEnemy * WarpDist);
 
-	// 高さはプレイヤー維持
+	//高さは現在のプレイヤーのものを維持
 	TargetLocation.Z = PlayerLocation.Z;
 
-	// ワープ（コリジョン考慮あり）
+	//計算した座標へワープ移動させる（めり込み防止コリジョン考慮なしで強制移動）
 	m_Player->SetActorLocation(TargetLocation, false);
 
-	// 敵の方向を向く
+	//ワープ後、敵の方を向かせる
 	m_Player->SetActorRotation(DirectionToEnemy.Rotation());
 }
 
-
-
-//空中停滞開始
+//空中攻撃に伴う滞空処理の開始
 void UPlayer_AttackComponent::AirAttackStart()
 {
 	if (UCharacterMovementComponent* MoveComp = m_Player->GetCharacterMovement())
 	{
+		//ムーブメントを飛行モードに変更し、重力と現在の速度を0にして空中でピタッと止める
 		MoveComp->SetMovementMode(MOVE_Flying);
 		MoveComp->GravityScale = 0.f;
 		MoveComp->Velocity = FVector::ZeroVector;
 	}
 }
 
-//空中停滞終了
+//空中攻撃の滞空処理の終了
 void UPlayer_AttackComponent::AirAttackEnd()
 {
 	if (UCharacterMovementComponent* MoveComp = m_Player->GetCharacterMovement())
 	{
-		MoveComp->SetMovementMode(MOVE_Falling);     // 飛行解除して落下モードに戻す
-		MoveComp->GravityScale = PlayerParam.GravityScale;               // 重力を通常値に戻す
-
+		//飛行モードを解除して落下モードに戻し、重力スケールも通常値に復帰させる
+		MoveComp->SetMovementMode(MOVE_Falling);
+		MoveComp->GravityScale = m_PlayerParam.GravityScale;
 	}
 }
 
-//強空中攻撃発動
+//空中強攻撃（たたき落とし）の開始処理
 void UPlayer_AttackComponent::AirFallAttack()
 {
 	if (!m_Player) return;
 
+	//敵との予期せぬ衝突を防ぐため一時的にコリジョンを消去
 	m_Player->DeleteCollision();
 
+	//たたき落とし用のステートを有効化し、溜め（滞空）時間をリセット
 	m_IsAirFallAttack = true;
 	m_IsAirFallCharging = true;
 	m_AirFallChargeTime = 0.f;
 
+	//一旦空中で停止させる
 	AirAttackStart();
 
+	//アクションの勢いをつけるため、Z軸方向にのみ急上昇の速度を与える
 	FVector RiseVelocity = m_Player->GetCharacterMovement()->Velocity;
-	RiseVelocity.Z = 400.f;
+	RiseVelocity.Z = AirFallRiseVelocityZ;
 	m_Player->GetCharacterMovement()->Velocity = RiseVelocity;
-
 }
 
+//空中強攻撃（たたき落とし）の終了・着地処理
 void UPlayer_AttackComponent::AirFallAttackEnd()
 {
+	//消去していたコリジョンを復活させる
 	m_Player->RevivalCollision();
 
+	//たたき落とし系のステートを解除
 	m_IsAirFallAttack = false;
 	m_IsAirFallCharging = false;
 
+	//再度ジャンプするまで空中攻撃を禁止する
 	m_CanAirAttack = false;
 	m_JumpStartZ = 0.f;
 
+	//飛行モードなどを解除して通常の落下モードへ
 	AirAttackEnd();
 }
 
-
+//空中での弱攻撃（ダッシュ斬り）処理
 void UPlayer_AttackComponent::AirDashAttack()
 {
-	// ===安全確認と初期化 ===
+	//===安全確認と初期化===
 	if (!m_Player) return;
 
 	m_IsAirDashAttack = true;
+	//移動中の引っ掛かりを防止するためコリジョンを一時消去
 	m_Player->DeleteCollision();
 
-	// ===入力情報の取得 ===
+	//===入力情報の取得===
 	FVector MoveDirection = FVector::ZeroVector;
 	m_MovementComponent->GetDesiredMoveDirection(MoveDirection);
 	const bool bHasMoveInput = m_MovementComponent->GetIsMoveInput();
 
-	// ===基準となる進行方向（BaseForward）の決定 ===
+	//===基準となる進行方向（BaseForward）の決定===
 	FVector BaseForward;
 
 	if (bHasMoveInput && !MoveDirection.IsNearlyZero())
 	{
-		// 入力があるなら、その方向を基準（水平化して正規化）
+		//スティック等の入力がある場合は、その方向を水平化して進行基準にする
 		MoveDirection.Z = 0.f;
 		BaseForward = MoveDirection.GetSafeNormal();
 	}
 	else
 	{
-		// 入力がないなら、プレイヤーの現在正面を基準
+		//入力がない場合は、現在プレイヤーが向いている方向を基準にする
 		BaseForward = m_Player->GetActorForwardVector();
 		BaseForward.Z = 0.f;
 		BaseForward.Normalize();
 	}
 
-
-	// ===ターゲット候補の取得 ===
+	//===ターゲット候補の取得===
 	const FVector PlayerLocation = m_Player->GetActorLocation();
-	const AEnemyBase* TargetEnemy = nullptr; // 最終的に攻撃する敵
+	const AEnemyBase* TargetEnemy = nullptr; //最終的に攻撃対象とする敵
 
-	// 敵マネージャー取得
+	//ワールド全体を管理する敵マネージャーを取得
 	UEnemyManager* EnemyManager = m_Player->GetWorld()->GetSubsystem<UEnemyManager>();
 	if (EnemyManager)
 	{
-		// 前方で一番近い敵を取得（※ここで死体が含まれる可能性がある）
+		//プレイヤー座標から一番近い敵を取得（死体が含まれる可能性があることに注意）
 		const AEnemyBase* ClosestEnemy = EnemyManager->GetClosestActiveEnemyFromCoordinates(PlayerLocation);
 
-		// 敵が見つかった場合の検証
+		//敵が見つかった場合の詳細な検証
 		if (ClosestEnemy)
 		{
-			//死にかけている（演出中など）敵はターゲットにしない
+			//完全に死んでいる、あるいは死亡演出中の敵は除外する
 			const bool bIsAlive = !ClosestEnemy->GetIsDying() && ClosestEnemy->GetIsActive();
 
 			if (bIsAlive)
 			{
-				// 敵の位置ベクトル計算
+				//プレイヤーから敵への相対ベクトルと距離を計算
 				const FVector EnemyLocation = ClosestEnemy->GetActorLocation();
 				FVector ToEnemy = EnemyLocation - PlayerLocation;
-				ToEnemy.Z = 0.f;
+				ToEnemy.Z = 0.f; //水平距離でのみ判定する
 				const float Distance = ToEnemy.Size();
 
 				if (!ToEnemy.IsNearlyZero())
 				{
-					// 正規化して内積（向きの一致度）を計算
+					//進行基準方向と敵の方向との内積を計算し、どれくらい向きが一致しているか判定
 					const FVector ToEnemyNormal = ToEnemy.GetSafeNormal();
 					const float Dot = FVector::DotProduct(BaseForward, ToEnemyNormal);
 
-					// 許容角度の閾値
-					const float DirectionThreshold = FMath::Cos(FMath::DegreesToRadians(PlayerParam.AttackInputAngle));
+					//パラメーターで設定された許容角度（Cos値）
+					const float DirectionThreshold = FMath::Cos(FMath::DegreesToRadians(m_PlayerParam.AttackInputAngle));
 
-					//入力優先
-					//入力あり：角度（Dot）が閾値以上 かつ 距離内ならOK
-					//入力なし：距離内ならOK（角度不問で吸着）
+					//入力の有無によるターゲット条件の分岐
+					//入力あり：指定された角度の範囲内にいて、かつ射程距離内ならOK
+					//入力なし：角度は問わず、射程距離内にいれば自動で吸い付く
 					const bool bCanTargetEnemy =
-						(bHasMoveInput && Dot >= DirectionThreshold && Distance <= PlayerParam.AttackRange) ||
-						(!bHasMoveInput && Distance <= PlayerParam.AttackRange);
+						(bHasMoveInput && Dot >= DirectionThreshold && Distance <= m_PlayerParam.AttackRange) ||
+						(!bHasMoveInput && Distance <= m_PlayerParam.AttackRange);
 
 					if (bCanTargetEnemy)
 					{
@@ -480,20 +471,19 @@ void UPlayer_AttackComponent::AirDashAttack()
 		}
 	}
 
-
-	// ===ターゲットがいる場合の攻撃処理 ===
+	//===ターゲットとなる敵が確定した場合の吸着処理===
 	if (TargetEnemy)
 	{
 		const FVector EnemyLocation = TargetEnemy->GetActorLocation();
 
-		// 敵の前方向を取得（敵の背後に回り込むため）
+		//敵の背後に回り込むため、敵の正面方向のベクトルを取得
 		FVector EnemyForward = FRotationMatrix(FRotator(0.f, TargetEnemy->GetActorRotation().Yaw, 0.f)).GetUnitAxis(EAxis::X);
 
-		// 目標地点：敵の背後
-		FVector TargetLocation = EnemyLocation - EnemyForward * PlayerParam.AttackEnemyBack;
-		TargetLocation.Z = EnemyLocation.Z; // 高さは敵に合わせる
+		//目標地点を計算（敵の座標から正面方向へ距離分マイナスした背後座標）
+		FVector TargetLocation = EnemyLocation - EnemyForward * m_PlayerParam.AttackEnemyBack;
+		TargetLocation.Z = EnemyLocation.Z; //高さは敵のZ座標に合わせる
 
-		// プレイヤーを敵方向へ向ける
+		//プレイヤーを敵の方へ振り向かせる
 		FVector LookDirection = EnemyLocation - PlayerLocation;
 		LookDirection.Z = 0.f;
 		if (!LookDirection.IsNearlyZero())
@@ -501,336 +491,236 @@ void UPlayer_AttackComponent::AirDashAttack()
 			m_Player->SetActorRotation(LookDirection.Rotation());
 		}
 
-		// ターゲット設定
+		//計算した目標地点をメンバ変数に保存し、移動追従フラグを立てる
 		m_AttackTargetLocation = TargetLocation;
 		m_HasAttackTargetLocation = true;
 		return;
 	}
 
+	//===ターゲットがいない場合（空振り・空中移動のみ）の処理===
+	//入力方向または正面方向（BaseForward）へ向かってそのまま飛んでいく
 
-	// ===ターゲットがいない場合（空振り・移動のみ） ===
-	// 入力方向（BaseForward）へ飛ぶ
+	//ダッシュ時に少し斜め下へ向かうための下降角度をラジアン変換
+	const float DownRad = FMath::DegreesToRadians(m_PlayerParam.AirDashDownAngle);
 
-	// 下方向へ少し傾ける
-	const float DownRad = FMath::DegreesToRadians(PlayerParam.AirDashDownAngle);
-
-	// 進行ベクトル作成
+	//前方へのベクトルと下方向へのベクトルを合成し、進行ベクトルを作成
 	FVector DashDirection = (BaseForward * FMath::Cos(DownRad)) + (FVector::DownVector * FMath::Sin(DownRad));
 
-	// 目標地点（固定距離移動）
-	FVector TargetLocation = PlayerLocation + DashDirection * PlayerParam.AirDashDistance;
+	//固定距離分移動した先を目標地点とする
+	FVector TargetLocation = PlayerLocation + DashDirection * m_PlayerParam.AirDashDistance;
 
-	// 向きは入力方向（水平）に合わせる
+	//進行方向へプレイヤーを向ける
 	m_Player->SetActorRotation(BaseForward.Rotation());
 
+	//計算した目標地点を保存し、移動追従フラグを立てる
 	m_AttackTargetLocation = TargetLocation;
 	m_HasAttackTargetLocation = true;
 }
 
-//攻撃踏み込み開始
+//地上攻撃での間合い詰め（ステップ）開始処理
 void UPlayer_AttackComponent::AttackFirstStepBegin()
 {
-	//プレイヤーが存在するか
 	if (!m_Player) return;
 
-	//ロック中の敵が死亡中なら即解除
-	if (m_LockedAttackTarget && m_LockedAttackTarget->GetIsDying())
-	{
-		ClearLockedAttackTarget();
-	}
-
-
-	if (m_EvasiveComponent->GetIsJustEvasive())return;
+	//ジャスト回避派生の場合はワープによる移動を行うため、ステップ処理はスキップする
+	if (m_EvasiveComponent->GetIsJustEvasive()) return;
 
 	m_HasAttackTargetLocation = false;
-
-	//プレイヤーの位置を取得
 	const FVector PlayerLocation = m_Player->GetActorLocation();
 
-
-
-	//---ロックオン中---------------------------------------------------------------------------------
-	//前方に踏み込む
-	if (m_CameraComponent->GetIsTargetLockedOn())
-	{
-		//ロックオンカメラの回転取得
-		const FRotator CameraRotation = m_CameraComponent->GetLockOnCamera()->GetComponentRotation();
-
-		//カメラの前方ベクトルを計算
-		FVector Forward = FRotationMatrix(FRotator(0.f, CameraRotation.Yaw, 0.f)).GetUnitAxis(EAxis::X);
-
-		//目標地点ヘ踏み込む
-		m_AttackTargetLocation = PlayerLocation + Forward * PlayerParam.AttackEnemyNothing;
-
-		//踏み込みは常に水平方向
-		m_AttackTargetLocation.Z = PlayerLocation.Z;
-		m_HasAttackTargetLocation = true;
-
-		//プレイヤーの向きを踏み込み方向へ回転
-		m_Player->SetActorRotation(Forward.Rotation());
-		return;
-	}
-
-
-
-	//===入力取得 ===
+	//現在の入力方向と、入力の有無を取得
 	FVector MoveDirection = FVector::ZeroVector;
 	m_MovementComponent->GetDesiredMoveDirection(MoveDirection);
-
-	//入力があるかどうか
 	const bool bHasMoveInput = m_MovementComponent->GetIsMoveInput();
 
-	//===入力なし　ロック済みの敵がいるとき ===
-	if (!bHasMoveInput && HasLockedAttackTarget())
-	{
-		const FVector EnemyLocation = m_LockedAttackTarget->GetActorLocation();
+	//敵を自動検索してターゲット設定を試みる。成功した場合はここで処理終了
+	if (TryTargetAutoSearch(PlayerLocation, MoveDirection, bHasMoveInput)) return;
 
-		FVector ToEnemy = EnemyLocation - PlayerLocation;
-		ToEnemy.Z = 0.f;
-
-		//万が一ゼロ長さ対策
-		if (!ToEnemy.IsNearlyZero())
-		{
-			ToEnemy.Normalize();
-		}
-		float WarpDist = m_LockedAttackTarget->GetWarpOffsetDistance();
-		m_AttackTargetLocation = EnemyLocation - (ToEnemy * WarpDist);
-
-		m_AttackTargetLocation.Z = PlayerLocation.Z;
-
-		m_Player->SetActorRotation(ToEnemy.Rotation());
-		m_HasAttackTargetLocation = true;
-
-		//攻撃開始時にカメラを補間して敵に向ける
-		if (m_CameraComponent)
-		{
-			m_CameraComponent->OnJEnemyDirection(m_LockedAttackTarget,false);
-		}
-
-		return;
-	}
-
-	//=== 新しい敵を探す・入力があれば既存ロック解除 ===
-	if (bHasMoveInput)
-	{
-		ClearLockedAttackTarget();
-	}
-
-
-	//敵マネージャーを取得
-	UEnemyManager* EnemyManager = m_Player->GetWorld()->GetSubsystem<UEnemyManager>();
-	//もっとも近い敵を探す
-	const AEnemyBase* NewEnemyTarget = nullptr;
-
-	//=== 敵探索 ===
-	//入力無し
-	if (EnemyManager)
-	{
-		if (!bHasMoveInput)
-		{
-			//まずは候補を取得
-			const AEnemyBase* CandidateEnemy = EnemyManager->GetClosestActiveEnemyFromCoordinates(PlayerLocation);
-
-			// 候補が有効かチェック
-			if (CandidateEnemy && CandidateEnemy->GetIsActive())
-			{
-				//距離チェックを追加
-				//どんなに近くても、攻撃範囲外ならターゲットにしない
-				float Dist = FVector::Dist(PlayerLocation, CandidateEnemy->GetActorLocation());
-
-				if (Dist <= PlayerParam.AttackRange)
-				{
-					NewEnemyTarget = CandidateEnemy;
-				}
-			}
-
-		}
-		else
-		{
-			MoveDirection.Z = 0.f;
-
-			if (!MoveDirection.IsNearlyZero())
-			{
-				MoveDirection.Normalize();
-
-				const AEnemyBase* ClosestEnemy = EnemyManager->GetClosestActiveEnemyFromCoordinates(PlayerLocation);
-				if (ClosestEnemy && ClosestEnemy->GetIsActive())
-				{
-					//敵の位置を取得
-					const FVector EnemyLocation = ClosestEnemy->GetActorLocation();
-					//敵の位置がカメラの視野内に存在するか
-					if (m_CameraComponent->IsLocationInCameraView(EnemyLocation))
-					{
-						//プレイヤーから敵への水平ベクトル
-						FVector DirectionToEnemy = EnemyLocation - PlayerLocation;
-						DirectionToEnemy.Z = 0.f;
-						//敵との距離
-						const float Distance = DirectionToEnemy.Size();
-
-						// 敵が間合い内なら敵方向へ
-						if (Distance <= PlayerParam.AttackRange)
-						{
-							//敵方向ベクトル正規化
-							DirectionToEnemy.Normalize();
-
-							//入力方向との角度判定
-							const float Dot = FVector::DotProduct(MoveDirection, DirectionToEnemy);
-
-							//入力があるときの敵を見つける角度
-							const float DirectionThreshold = FMath::Cos(FMath::DegreesToRadians(PlayerParam.AttackInputAngle));
-							if (Dot >= DirectionThreshold)
-							{
-								NewEnemyTarget = ClosestEnemy;
-							}
-						}
-					}
-				}
-
-			}
-		}
-	}
-	//=== 敵が決定・ロック ===
-	if (NewEnemyTarget && NewEnemyTarget->GetIsActive())
-	{
-		SetLockedAttackTarget(NewEnemyTarget);
-
-		const FVector EnemyLocation = NewEnemyTarget->GetActorLocation();
-
-		FVector ToEnemy = EnemyLocation - PlayerLocation;
-		ToEnemy.Z = 0.f;
-
-		//万が一ゼロ長さ対策
-		if (!ToEnemy.IsNearlyZero())
-		{
-			ToEnemy.Normalize();
-		}
-
-		float WarpDist = NewEnemyTarget->GetWarpOffsetDistance();
-		m_AttackTargetLocation = EnemyLocation - (ToEnemy * WarpDist);
-
-		m_AttackTargetLocation.Z = PlayerLocation.Z;
-
-		m_Player->SetActorRotation(ToEnemy.Rotation());
-		m_HasAttackTargetLocation = true;
-
-		//攻撃開始時にカメラを補間して敵に向ける
-		if (m_CameraComponent)
-		{
-			m_CameraComponent->OnJEnemyDirection(NewEnemyTarget,false);
-		}
-		return;
-
-	}
-
-	//=== 敵なし ===
-	FVector Forward;
-
-	if (bHasMoveInput && !MoveDirection.IsNearlyZero())
-	{
-		Forward = MoveDirection.GetSafeNormal();
-	}
-	else
-	{
-		Forward = m_Player->GetActorForwardVector();
-	}
-
-	m_AttackTargetLocation = PlayerLocation + Forward * PlayerParam.AttackEnemyNothing;
-	m_AttackTargetLocation.Z = PlayerLocation.Z;
-
-	m_Player->SetActorRotation(Forward.Rotation());
-	m_HasAttackTargetLocation = true;
+	//ターゲットが見つからなかった場合は前方への空振りステップ処理を行う
+	TargetForward(PlayerLocation, MoveDirection, bHasMoveInput);
 }
 
-//攻撃踏み込み移動
+//敵の自動検索とロックオン処理
+bool UPlayer_AttackComponent::TryTargetAutoSearch(const FVector& PlayerLocation, const FVector& MoveDirection, bool bHasMoveInput)
+{
+	//別の方向へ入力があった場合は、以前の敵へのソフトロック状態を解除する
+	if (bHasMoveInput) ClearLockedAttackTarget();
+
+	//入力がなく、すでにロック済みの敵がいれば、そのままその敵を目標にする
+	if (!bHasMoveInput && HasLockedAttackTarget())
+	{
+		const AEnemyBase* Enemy = m_LockedAttackTarget.Get();
+		//敵への方向ベクトル（水平のみ）
+		FVector ToEnemy = (Enemy->GetActorLocation() - PlayerLocation).GetSafeNormal2D();
+
+		//敵のコリジョンにめり込まない位置を目標座標として算出
+		FVector TargetLocation = Enemy->GetActorLocation() - (ToEnemy * Enemy->GetWarpOffsetDistance());
+		ApplyTargetLocation(TargetLocation, ToEnemy);
+
+		//カメラを敵の方へ向ける
+		if (m_CameraComponent) m_CameraComponent->OnJEnemyDirection(Enemy, false);
+		return true;
+	}
+
+	//敵マネージャーから新規に一番近い敵を検索する
+	UEnemyManager* EnemyManager = m_Player->GetWorld()->GetSubsystem<UEnemyManager>();
+	if (!EnemyManager) return false;
+
+	const AEnemyBase* ClosestEnemy = EnemyManager->GetClosestActiveEnemyFromCoordinates(PlayerLocation);
+
+	//敵が存在しないか、死んでいる等の理由でアクティブでなければ失敗
+	if (!ClosestEnemy || !ClosestEnemy->GetIsActive()) return false;
+
+	FVector EnemyLocation = ClosestEnemy->GetActorLocation();
+	FVector DirectionToEnemy = (EnemyLocation - PlayerLocation).GetSafeNormal2D();
+	float Distance = FVector::Dist2D(PlayerLocation, EnemyLocation);
+
+	//設定された攻撃の射程範囲外であれば無視する
+	if (Distance > m_PlayerParam.AttackRange) return false;
+
+	//入力がある場合は、入力方向と敵のいる方向の角度をチェックする
+	if (bHasMoveInput)
+	{
+		//カメラの視界に入っていない敵には吸い付かない
+		if (!m_CameraComponent->IsLocationInCameraView(EnemyLocation)) return false;
+
+		FVector MoveDirNorm = MoveDirection.GetSafeNormal2D();
+		float Dot = FVector::DotProduct(MoveDirNorm, DirectionToEnemy);
+		float DirectionThreshold = FMath::Cos(FMath::DegreesToRadians(m_PlayerParam.AttackInputAngle));
+
+		//入力方向と敵の方向が許容角度以上ズレている場合は失敗
+		if (Dot < DirectionThreshold) return false;
+	}
+
+	//すべての条件をクリアしたため、対象をロックオンする
+	SetLockedAttackTarget(ClosestEnemy);
+
+	//目標座標を計算し適用
+	FVector TargetLocation = EnemyLocation - (DirectionToEnemy * ClosestEnemy->GetWarpOffsetDistance());
+	ApplyTargetLocation(TargetLocation, DirectionToEnemy);
+
+	//カメラを対象に向ける
+	if (m_CameraComponent) m_CameraComponent->OnJEnemyDirection(ClosestEnemy, false);
+
+	return true;
+}
+
+//ターゲットがいない空振り時の移動先設定
+void UPlayer_AttackComponent::TargetForward(const FVector& PlayerLocation, const FVector& MoveDirection, bool bHasMoveInput)
+{
+	//入力があればその方向、なければプレイヤーの現在の正面方向を取得
+	FVector Forward = (bHasMoveInput && !MoveDirection.IsNearlyZero())
+		? MoveDirection.GetSafeNormal2D()
+		: m_Player->GetActorForwardVector().GetSafeNormal2D();
+
+	//固定距離分進んだ位置を目標とする
+	FVector TargetLocation = PlayerLocation + Forward * m_PlayerParam.AttackEnemyNothing;
+	ApplyTargetLocation(TargetLocation, Forward);
+}
+
+//計算した目標座標とプレイヤーの向きをコンポーネントに適用する共通処理
+void UPlayer_AttackComponent::ApplyTargetLocation(const FVector& TargetLocation, const FVector& DirectionToTarget)
+{
+	m_AttackTargetLocation = TargetLocation;
+	m_AttackTargetLocation.Z = m_Player->GetActorLocation().Z; //Z座標（高さ）は現状を維持
+	m_Player->SetActorRotation(DirectionToTarget.Rotation()); //目標の方向を向く
+	m_HasAttackTargetLocation = true; //追従フラグをON
+}
+
+//攻撃間合い詰め（ステップ）の毎フレーム移動処理
 void UPlayer_AttackComponent::AttackFirstStepTick()
 {
 	if (!m_Player) return;
 	if (!m_HasAttackTargetLocation) return;
 
-	// 現在位置から目標位置へのベクトルを毎フレーム再計算 補正
+	//現在位置から目標位置への残りのベクトルを毎フレーム再計算し補正する
 	const FVector CurrentLocation = m_Player->GetActorLocation();
 
-	//目標位置
-	FVector TargetLocation =
-		m_AttackTargetLocation - CurrentLocation;
+	//目標位置への残りの距離ベクトル
+	FVector TargetLocation = m_AttackTargetLocation - CurrentLocation;
 
 	if (!m_IsAirDashAttack) {
-		// 高さ方向は無視
+		//地上ステップの場合は高さ方向を無視
 		TargetLocation.Z = 0.f;
-		//UE_LOG(LogTemp, Warning, TEXT("TargetLocation.Z = 0.f"));
 	}
 	const float Distance = TargetLocation.Size();
 
-	// ほぼ到達していたら停止
-	if (Distance < 5.f)
+	//残りの距離が閾値未満（ほぼ到達）なら、誤差を消すため目標位置へスナップして終了
+	if (Distance < StopDistanceThreshold)
 	{
 		m_Player->SetActorLocation(m_AttackTargetLocation, true);
 		return;
 	}
 
-	// 進行方向
+	//現在の向かうべき方向
 	const FVector MoveDirection = TargetLocation.GetSafeNormal();
 
-	// フレーム依存しない移動量
-	//空中攻撃であればより早く
+	//フレームレートに依存しない移動量を計算
 	if (m_IsAirDashAttack) {
-		m_MoveStep = PlayerParam.AirAttackSpeed * GetWorld()->GetDeltaSeconds();
+		//空中攻撃用の移動速度を使用
+		m_MoveStep = m_PlayerParam.AirAttackSpeed * GetWorld()->GetDeltaSeconds();
 	}
 	else {
-		m_MoveStep = PlayerParam.AttackSpeed * GetWorld()->GetDeltaSeconds();
+		//地上ステップ用の移動速度を使用
+		m_MoveStep = m_PlayerParam.AttackSpeed * GetWorld()->GetDeltaSeconds();
 	}
 
+	//今回のフレームでの移動予定先
 	FVector NextLocation = CurrentLocation + MoveDirection * m_MoveStep;
 
-	// 行き過ぎ防止
+	//移動予定量が残り距離を上回る（行き過ぎる）場合は目標位置で止める
 	if (m_MoveStep >= Distance)
 	{
 		NextLocation = m_AttackTargetLocation;
 	}
 
+	//プレイヤーを移動させる
 	m_Player->SetActorLocation(NextLocation, true);
 }
 
-//間合い詰め終了
+//間合い詰め（ステップ）終了処理
 void UPlayer_AttackComponent::AttackFirstStepEnd()
 {
+	//攻撃開始時に消去していた場合はコリジョンを復活させる
 	m_Player->RevivalCollision();
 
-	//無敵状態
+	//強攻撃以外であれば、ステップ中に付与していた無敵状態を解除する
 	if (!m_HeavyAttackStart) {
 		m_Player->SetInvincible(false);
-
 	}
 
-
+	//追従フラグと目標地点をリセット
 	m_HasAttackTargetLocation = false;
 	m_IsAirDashAttack = false;
 	m_AttackTargetLocation = FVector::ZeroVector;
 }
 
+//ターゲットを固定（ロックオン）する
 void UPlayer_AttackComponent::SetLockedAttackTarget(const AEnemyBase* Enemy)
 {
 	m_LockedAttackTarget = Enemy;
 }
 
+//ジャンプ開始時に初期高度を保存し、空中攻撃のフラグをリセットする
 void UPlayer_AttackComponent::OnJumpStarted()
 {
 	m_JumpStartZ = m_Player->GetActorLocation().Z;
 	m_CanAirAttack = false;
 }
 
+//ロックオン対象をクリアする
 void UPlayer_AttackComponent::ClearLockedAttackTarget()
 {
 	m_LockedAttackTarget = nullptr;
 }
 
+//有効なロックオン対象が存在するか確認する
 bool UPlayer_AttackComponent::HasLockedAttackTarget() const
 {
-	return m_LockedAttackTarget && m_LockedAttackTarget->GetIsActive();
+	return m_LockedAttackTarget.IsValid() && m_LockedAttackTarget->GetIsActive();
 }
 
-
-//===リセット===
+//===リセット関連処理===
 void UPlayer_AttackComponent::ResetAttack()
 {
 	if (!m_Player) return;
@@ -841,61 +731,60 @@ void UPlayer_AttackComponent::ResetAttack()
 	m_Player->RevivalCollision();
 	ResetEvasiveState();
 	CancelAttackAbilities();
-
 }
 
+//地上攻撃・コンボに関するフラグの初期化
 void UPlayer_AttackComponent::ResetAttackFlags()
 {
 	m_CanAttack = true;
 	m_CanAirAttack = true;
 
-	// --- 攻撃・コンボ系 ---
+	//---攻撃・コンボ系---
 	m_IsAttack = false;
 	m_ComboIndex = 0;
 	m_NextAttackRequested = false;
 	m_CanBufferAttack = false;
 
-	//--- 強攻撃 ---
+	//---強攻撃---
 	m_IsHeavyCharging = false;
 	m_HeavyAttackStart = false;
 
 	m_HeavyChargeTime = 0.f;
 
-
-	//m_Player->SetIsEnhancedAttack(false);
-
-	// 次に予約されている Ability を破棄
+	//次に予約されている先行入力(バッファ)のアビリティを破棄する
 	if (m_Player)
 	{
 		m_Player->m_BufferedNextAbility = nullptr;
 	}
 }
 
+//空中攻撃に関するフラグの初期化
 void UPlayer_AttackComponent::ResetAirAttackFlags()
 {
-	// --- 空中攻撃系 ---
+	//---空中攻撃系---
 	m_IsAirAttackStart = false;
 	m_IsAirDashAttack = false;
 	m_IsAirFallAttack = false;
 	m_IsAirFallCharging = false;
 
-
 	m_AirFallChargeTime = 0.f;
 }
 
+//移動ステップや状態の初期化・強制停止処理
 void UPlayer_AttackComponent::ResetMovementState()
 {
-	// --- 踏み込み移動 ---
+	//---踏み込み移動---
 	m_HasAttackTargetLocation = false;
 	m_AttackTargetLocation = FVector::ZeroVector;
 	m_MoveStep = 0.f;
 
-	// --- 移動状態を強制的に通常へ ---
+	//---移動状態を強制的に通常へ戻す---
 	if (UCharacterMovementComponent* MoveComp = m_Player->GetCharacterMovement())
 	{
 		MoveComp->StopMovementImmediately();
-		MoveComp->GravityScale = PlayerParam.GravityScale;
+		MoveComp->GravityScale = m_PlayerParam.GravityScale;
 
+		//飛行状態なら落下モードに書き換える
 		if (MoveComp->MovementMode == MOVE_Flying)
 		{
 			MoveComp->SetMovementMode(MOVE_Falling);
@@ -903,16 +792,17 @@ void UPlayer_AttackComponent::ResetMovementState()
 	}
 }
 
-
+//回避状態の初期化
 void UPlayer_AttackComponent::ResetEvasiveState()
 {
-	// --- 回避再許可 ---
+	//---回避再許可---
 	if (m_EvasiveComponent)
 	{
 		m_EvasiveComponent->SetCanEvasive(true);
 	}
 }
 
+//実行中の攻撃アビリティの強制キャンセル
 void UPlayer_AttackComponent::CancelAttackAbilities()
 {
 	if (UAbilitySystemComponent* ASC = m_Player->GetAbilitySystemComponent())
@@ -921,25 +811,34 @@ void UPlayer_AttackComponent::CancelAttackAbilities()
 	}
 }
 
-
+//現在何らかの攻撃ステートにいるかどうかを一括で判定する
 bool UPlayer_AttackComponent::GetIsInAttackState() const
 {
-	return 	m_IsAirAttackStart || m_IsHeavyCharging || m_HeavyAttackStart || m_IsAirDashAttack || m_IsAirFallAttack;
+	return m_IsAirAttackStart || m_IsHeavyCharging || m_HeavyAttackStart || m_IsAirDashAttack || m_IsAirFallAttack;
 }
 
-
+//各種フラグから、新規の攻撃入力を受け付けてよい状態か判定する
 bool UPlayer_AttackComponent::CanAcceptAttackInput() const
 {
+	//システム的に禁止されている
 	if (!m_CanAttack) return false;
-	if (m_IsAirAttackStart)return false;
-	if (m_IsAirDashAttack)return false;
+	//空中攻撃実行中
+	if (m_IsAirAttackStart) return false;
+	//空中ダッシュ斬り中
+	if (m_IsAirDashAttack) return false;
+	//強攻撃実行中
 	if (m_HeavyAttackStart) return false;
+	//強攻撃溜め中
 	if (m_IsHeavyCharging) return false;
-	if (m_IsAirFallAttack)return false;
-	if (m_EvasiveComponent->GetIsEvasive())return false;
+	//空中たたき落とし実行中
+	if (m_IsAirFallAttack) return false;
+	//回避アクション中
+	if (m_EvasiveComponent->GetIsEvasive()) return false;
+
 	return true;
 }
 
+//プレイヤーがジャンプ中（空中）か判定する
 bool UPlayer_AttackComponent::IsJumping() const
 {
 	return m_MovementComponent && m_MovementComponent->GetIsJump();

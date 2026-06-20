@@ -40,9 +40,9 @@ void UGameplayAreaEventManager::Initialize(FSubsystemCollectionBase& Collection)
 }
 
 void UGameplayAreaEventManager::Deinitialize() {
-	ResetParam();
-
 	Super::Deinitialize();
+
+	ResetParam();
 
 	UWorld* world = GetWorld();
 	if (!world)return;
@@ -57,11 +57,11 @@ void UGameplayAreaEventManager::Deinitialize() {
 		PlayerSubsystem->OnPlayerDiedOccurred.RemoveDynamic(this, &UGameplayAreaEventManager::OnPlayerDied);
 	}
 
-
 	if (GEngine)
 	{
 		GEngine->AddOnScreenDebugMessage(-1, 5.f, FColor::Blue, TEXT("UGameplayAreaEventManager::Deinitialize!!!"));
 	}
+
 }
 
 void UGameplayAreaEventManager::Tick(float DeltaTime)
@@ -95,6 +95,8 @@ void UGameplayAreaEventManager::StartEvent(AEventTriggerVolume& _volume) {
 	m_EventEventTriggerVolume = &_volume;
 
 	UEventDataBase* EventData = m_EventEventTriggerVolume->GetEventData();
+
+	if (!EventData) { return; }
 
 	m_EventMode = EventData->GetDataEventMode();
 
@@ -143,6 +145,7 @@ void UGameplayAreaEventManager::EventBossEnemyDeath() {
 void UGameplayAreaEventManager::StartEnemyClearConditionEvent(UEventDataBase& _data) {
 	m_EnemyClearConditionData = Cast<UEventEnemyClearConditionData>(&_data);
 
+	if (!m_EnemyClearConditionData)return;
 
 	UWorld* World = GetWorld();
 	if (!World)return;
@@ -210,7 +213,11 @@ void UGameplayAreaEventManager::OnPlayerDied(AActor* _player) {
 		EventEnd();
 
 		//イベントの敵を全て非アクティブに
-		UEnemyManager* EnemyMng = GetWorld()->GetSubsystem<UEnemyManager>();
+		UWorld* World = GetWorld();
+		if (!World) return;
+
+		UEnemyManager* EnemyMng = World->GetSubsystem<UEnemyManager>();
+
 		if (EnemyMng)
 		{
 			EnemyMng->DeactivateAllEventEnemies();

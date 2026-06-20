@@ -29,7 +29,10 @@ void AEnemy_Grunt::BeginPlay() {
 
 	if (m_IsTutorialEnemy) {
 		SetIsEventEnemy(true);
-		UEnemyNavigationManager* Subsystem = GetWorld()->GetSubsystem<UEnemyNavigationManager>();
+		UWorld* World = GetWorld();
+		if (!World)return;
+
+		UEnemyNavigationManager* Subsystem = World->GetSubsystem<UEnemyNavigationManager>();
 		if (!Subsystem)return;
 
 		Subsystem->AddChasingEnemy(this);

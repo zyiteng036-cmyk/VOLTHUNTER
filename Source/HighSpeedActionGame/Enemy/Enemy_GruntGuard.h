@@ -49,5 +49,6 @@ private:
 
 	FVector m_AttackVector;
 
+	//UŒ‚€”õ’†‚©
 	bool m_IsPreparingAttack;
 };

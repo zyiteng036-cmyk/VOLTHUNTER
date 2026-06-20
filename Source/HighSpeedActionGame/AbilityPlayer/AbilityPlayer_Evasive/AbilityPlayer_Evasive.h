@@ -30,7 +30,7 @@ public:
     ) override;
 
     UFUNCTION()
-    void OnMontageEnded();
+    virtual void OnMontageEnded();
 
     bool CanActivateAbility(const FGameplayAbilitySpecHandle Handle,
         const FGameplayAbilityActorInfo* ActorInfo,

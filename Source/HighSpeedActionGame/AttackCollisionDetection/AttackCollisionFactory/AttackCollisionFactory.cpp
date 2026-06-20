@@ -31,7 +31,7 @@ void AAttackCollisionFactory::BeginPlay()
 		PoolSubSystem->CreatePool(this);
 	}
 
-	this->Destroy();
+	Destroy();
 }
 
 // Called every frame
@@ -40,6 +40,7 @@ void AAttackCollisionFactory::Tick(float DeltaTime)
 	Super::Tick(DeltaTime);
 
 }
+
 TObjectPtr<AAttackCollisionDetection> AAttackCollisionFactory::CreateAAttackCollisionDetection(UWorld* World, const FVector& Location, const FRotator& Rotation) const
 {
 

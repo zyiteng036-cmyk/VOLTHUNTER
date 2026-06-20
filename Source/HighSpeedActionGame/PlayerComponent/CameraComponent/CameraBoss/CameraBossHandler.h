@@ -1,7 +1,7 @@
 //担当
 //伊藤直樹
 
-//ボスシーンでのカメラハンドラー
+//ボス戦時のカメラ挙動(距離の調整やFOVの拡張による巨大感の演出)を制御するハンドラークラス
 
 #pragma once
 
@@ -12,15 +12,14 @@
 class USpringArmComponent;
 class UCameraComponent;
 class APlayerController;
-/**
- * 
- */
+
 UCLASS(Blueprintable, EditInlineNew)
 class HIGHSPEEDACTIONGAME_API UCameraBossHandler : public UObject
 {
 	GENERATED_BODY()
-	
+
 public:
+	//初期化処理
 	void Initialize(USpringArmComponent* InSpringArm, UCameraComponent* InCamera);
 
 	//ボス戦カメラ開始
@@ -29,30 +28,40 @@ public:
 	//ボス戦カメラ終了
 	void EndBossCamera();
 
-	//更新処理
+	//更新処理(trueを返している間は処理継続)
 	bool UpdateBossCamera(float DeltaTime);
 
-	bool IsActive()const;
+	//現在演出中かどうかを取得
+	bool IsActive() const { return m_IsActive; }
 
 protected:
 	//ボス専用パラメータ
+	//ボス戦時のカメラの基本距離
 	UPROPERTY(EditAnywhere, Category = "BossCamera")
-	float m_BossArmLength=600.f;
+	float m_BossArmLength = 600.0f;
 
-	UPROPERTY(EditAnywhere, Category = "Boss Camera")
-	float m_BossFOV = 100.0f;        // 画角を広げて巨大感を出す
+	//画角を広げて巨大感を出すためのFOV設定
+	UPROPERTY(EditAnywhere, Category = "BossCamera")
+	float m_BossFOV = 100.0f;
 
-
-	UPROPERTY(EditAnywhere, Category = "Boss Camera")
-	float m_TransitionSpeed = 2.0f;   // 移行する速さ
+	//通常状態からボス用カメラへ移行する際の補間スピード
+	UPROPERTY(EditAnywhere, Category = "BossCamera")
+	float m_TransitionSpeed = 2.0f;
 
 private:
-	USpringArmComponent* SpringArm;
-	UCameraComponent* Camera;
+	//対象のスプリングアーム
+	TWeakObjectPtr<USpringArmComponent> m_SpringArm = nullptr;
 
-	bool m_IsActive;
+	//対象のカメラ
+	TWeakObjectPtr<UCameraComponent> m_Camera = nullptr;
 
-	// 元に戻すためのキャッシュ
-	float m_DefaultArmLength;
-	float m_DefaultFOV;
+	//ボス戦カメラ演出中フラグ
+	bool m_IsActive = false;
+
+	//元に戻すためのキャッシュ
+	//開始前のデフォルトのカメラ距離
+	float m_DefaultArmLength = 0.0f;
+
+	//開始前のデフォルトのFOV
+	float m_DefaultFOV = 0.0f;
 };

@@ -15,23 +15,26 @@ void UAbilityPlayer_AttackLight03::EndAbility(
     bool bReplicateEndAbility,
     bool bWasCancelled)
 {
-    if (ActorInfo && ActorInfo->AvatarActor.IsValid())
-    {
-        if (APlayerCharacter* PlayerCharacter = Cast<APlayerCharacter>(ActorInfo->AvatarActor.Get()))
-        {
-            if (UPlayer_AttackComponent* AttackComp = PlayerCharacter->FindComponentByClass<UPlayer_AttackComponent>())
-            {
-                AttackComp->SetIsAttack(false);
-                AttackComp->SetComboIndex(0);
-            }
-            if (UPlayer_SkillComponent* SkillComp = PlayerCharacter->FindComponentByClass<UPlayer_SkillComponent>())
-            {
-                SkillComp->SetCanSkillActive(true);
-            }
+	if (ActorInfo && ActorInfo->AvatarActor.IsValid())
+	{
+		APlayerCharacter* PlayerCharacter = Cast<APlayerCharacter>(ActorInfo->AvatarActor.Get());
+		if (PlayerCharacter)
+		{
+			if (UPlayer_AttackComponent* AttackComp = PlayerCharacter->FindComponentByClass<UPlayer_AttackComponent>())
+			{
+				AttackComp->SetIsAttack(false);
+				//コンボルートのリセット
+				AttackComp->SetComboIndex(0); 
+			}
 
-            PlayerCharacter->SetIsEnhancedAttack(false);
-        }
-    }
+			if (UPlayer_SkillComponent* SkillComp = PlayerCharacter->FindComponentByClass<UPlayer_SkillComponent>())
+			{
+				SkillComp->SetCanSkillActive(true);
+			}
 
-    Super::EndAbility(Handle, ActorInfo, ActivationInfo, bReplicateEndAbility, bWasCancelled);
+			PlayerCharacter->SetIsEnhancedAttack(false);
+		}
+	}
+
+	Super::EndAbility(Handle, ActorInfo, ActivationInfo, bReplicateEndAbility, bWasCancelled);
 }

@@ -9,6 +9,17 @@
 
 struct FBlackboardKeySelector;
 
+
+// ヘッダーに追加（または別ファイルに切り出す）
+UENUM(BlueprintType)
+enum class ETrojanHorseBehaviorState : uint8
+{
+	ShortAttack_A = 0,
+	ShortAttack_B = 1,
+	LongAttack_A = 2,
+	LongAttack_B = 3,
+};
+
 /**
  *
  */

@@ -20,6 +20,14 @@ public:
 	FAttackCollisionHandle(UAttackCollisionPoolSubsystem* InSubsystem, AAttackCollisionDetection* InInstance);
 
 
+	//生成禁止
+	FAttackCollisionHandle(const FAttackCollisionHandle&) = delete;
+	FAttackCollisionHandle& operator=(const FAttackCollisionHandle&) = delete;
+
+	// ムーブのみ許可
+	FAttackCollisionHandle(FAttackCollisionHandle&&) = default;
+	FAttackCollisionHandle& operator=(FAttackCollisionHandle&&) = default;
+
 	//有効か
 	bool IsValid() const;
 
@@ -27,13 +35,13 @@ public:
 	void SetVisible(const bool _isVisble);
 
 	//初期化用のメソッド
-	void Initialize(const UHitJudgmentComponent& _hitJudgmentComponent, const FDamageInfo& _damage, const FVector& _location, const TArray<FString> _tags, const float _radius, const float _activeTime);
+	void Initialize(const UHitJudgmentComponent& _hitJudgmentComponent, const FDamageInfo& _damage, const FVector& _location, const TArray<FString>& _tags, const float _radius, const float _activeTime);
 
 	//プールに返却時に呼ばれる処理をまとめるメソッド
 	void Release();
 
 	//位置設定
-	void SetCollisionWorldLocation(const FVector _location);
+	void SetCollisionWorldLocation(const FVector& _location);
 
 private:
 	//プールに返す

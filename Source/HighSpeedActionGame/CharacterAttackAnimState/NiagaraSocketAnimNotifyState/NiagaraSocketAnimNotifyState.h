@@ -1,4 +1,5 @@
-// Fill out your copyright notice in the Description page of Project Settings.
+// 担当：佐々木奏太
+// 通知開始時：ソケットの位置でNaiagara再生　通知終了時：Niagara停止　するクラス
 
 #pragma once
 
@@ -21,6 +22,7 @@ public:
     virtual void NotifyBegin(USkeletalMeshComponent* MeshComp, UAnimSequenceBase* Animation, float TotalDuration) override;
     virtual void NotifyEnd(USkeletalMeshComponent* MeshComp, UAnimSequenceBase* Animation) override;
 
+protected:
     // Niagaraエフェクトアセット
     UPROPERTY(EditAnywhere, BlueprintReadWrite, Category = "Effect")
     UNiagaraSystem* NiagaraSystem;

@@ -26,17 +26,18 @@ public:
 	// Called every frame
 	virtual void Tick(float DeltaTime) override;
 
-	TObjectPtr<AEnemyBase> CreateEnemy(UWorld* World, const FString EnemyName, const FVector& Location, const FRotator& Rotation);
-	UDataTable* GetEnemyDataToGenerate();
+	TObjectPtr<AEnemyBase> CreateEnemy(UWorld* _world, const FString& _enemyName, const FVector& _location, const FRotator& _rotation)const;
+	UDataTable* GetEnemyDataToGenerate()const { return m_EnemyDataToGenerate; }
 
-	UPROPERTY(EditAnywhere, Category = "EnemyClass")
+protected:
+	UPROPERTY(EditAnywhere, BlueprintReadWrite, Category = "EnemyClass")
 	TSubclassOf<AActor> Enemy_GruntClass;
 
-	UPROPERTY(EditAnywhere, Category = "EnemyClass")
+	UPROPERTY(EditAnywhere, BlueprintReadWrite, Category = "EnemyClass")
 	TSubclassOf<AActor> Enemy_GruntGuardClass;
 
-	UPROPERTY(EditAnywhere, Category = "EnemyClass")
-	TSubclassOf<AActor> Enemy_TrojanHouseClass;
+	UPROPERTY(EditAnywhere, BlueprintReadWrite, Category = "EnemyClass")
+	TSubclassOf<AActor> Enemy_TrojanHorseClass;
 private:
 
 	UPROPERTY(EditAnywhere, Category = "EnemyClass")

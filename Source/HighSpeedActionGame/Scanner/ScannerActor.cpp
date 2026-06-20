@@ -8,22 +8,21 @@
 // Sets default values
 AScannerActor::AScannerActor()
 {
- 	// Set this actor to call Tick() every frame.  You can turn this off to improve performance if you don't need it.
 	PrimaryActorTick.bCanEverTick = true;
 
 	PrimaryActorTick.bStartWithTickEnabled = false;
 
-	// メッシュコンポーネントの作成
+	//メッシュコンポーネントの作成
 	SphereMesh = CreateDefaultSubobject<UStaticMeshComponent>(TEXT("SphereMesh"));
 	RootComponent = SphereMesh;
 
-	// コリジョンなしの設定
+	//コリジョンなしの設定
 	SphereMesh->SetCollisionEnabled(ECollisionEnabled::NoCollision);
 	SphereMesh->SetCollisionProfileName(TEXT("NoCollision"));
 
-	// デフォルト値の設定
-	ExpansionSpeed = 20.0f; // 適当な速度
-	LifeDuration = 2.0f;   // 2秒後に消える
+	//デフォルト値の設定
+	ExpansionSpeed = 20.0f;
+	LifeDuration = 2.0f; 
 	bIsActive = false;
 }
 

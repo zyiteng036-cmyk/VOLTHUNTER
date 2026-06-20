@@ -22,6 +22,8 @@ class HIGHSPEEDACTIONGAME_API UComboActiveNotifyState : public UAnimNotifyState
 	virtual void NotifyEnd(USkeletalMeshComponent* MeshComp, UAnimSequenceBase* Animation) override;
 
 private:
+	//”­“®Ï‚İ‚©‚Ç‚¤‚©
 	bool m_Activated;
+	//“ü—Í—\–ñ‚ª‚ ‚Á‚½‚©
 	bool m_InputEverRequested;
 };

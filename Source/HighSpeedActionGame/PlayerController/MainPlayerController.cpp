@@ -1,6 +1,3 @@
-// Fill out your copyright notice in the Description page of Project Settings.
-
-
 #include "MainPlayerController.h"
 #include "EnhancedInputComponent.h"
 #include "EnhancedInputSubsystems.h"
@@ -9,90 +6,101 @@
 #include "Kismet/GameplayStatics.h"
 #include "GameFramework/Pawn.h"
 #include "../Widget/ResultWidget.h"
-namespace {
-	constexpr int8 MaxResultMenuIndex = 1;
-	constexpr float ResultAnimationDuration = 9.0f; 
+
+namespace MainPlayerControllerConstants
+{
+	constexpr int8 MaxResultMenuIndex = 1; //メニュー項目の最大インデックス
+	constexpr float ResultAnimationDuration = 9.0f; //リザルト演出アニメーションの再生時間
+	constexpr int32 DefaultMappingPriority = 0; //インプットマッピングのデフォルト優先度
+	constexpr int32 ResultWidgetZOrder = 200; //リザルトUI表示時のZオーダー値
+	constexpr int32 InitialMenuIndex = 0; //メニューの初期選択位置
 }
 
-
-
+//ゲーム開始時の処理
 void AMainPlayerController::BeginPlay()
 {
 	Super::BeginPlay();
 
+	//初期の入力モードをゲームプレイ用に設定
 	SetInputModeState(EPlayerInputMode::Gameplay);
 }
 
+//入力コンポーネントの初期化
 void AMainPlayerController::SetupInputComponent()
 {
 	Super::SetupInputComponent();
 
-	// Result 用入力のみ PlayerController 側でバインドする
-	// Gameplay 入力は PlayerCharacter 側で管理するため、ここでは扱わない
+	//Result用入力のみPlayerController側でバインドする
+	//Gameplay入力はPlayerCharacter側で管理するため、ここでは扱わない
 	UEnhancedInputComponent* EIComp = CastChecked<UEnhancedInputComponent>(InputComponent);
 
-	EIComp->BindAction(ResultDecisionAction, ETriggerEvent::Triggered,
-		this, &AMainPlayerController::ResultDecision);
-
-	EIComp->BindAction(ResultMoveUpAction, ETriggerEvent::Started,
-		this, &AMainPlayerController::ResultMoveUp);
-
-	EIComp->BindAction(ResultMoveDownAction, ETriggerEvent::Started,
-		this, &AMainPlayerController::ResultMoveDown);
+	//リザルト用のキー入力を各関数にバインド
+	EIComp->BindAction(m_ResultDecisionAction, ETriggerEvent::Triggered, this, &AMainPlayerController::ResultDecision);
+	EIComp->BindAction(m_ResultMoveUpAction, ETriggerEvent::Started, this, &AMainPlayerController::ResultMoveUp);
+	EIComp->BindAction(m_ResultMoveDownAction, ETriggerEvent::Started, this, &AMainPlayerController::ResultMoveDown);
 }
+
+//リザルトモード開始
 void AMainPlayerController::EnterResultMode()
 {
-	if (CurrentInputMode == EPlayerInputMode::Result) return;
+	//既にリザルトモードなら何もしない
+	if (m_CurrentInputMode == EPlayerInputMode::Result) return;
 
+	//入力ステートをリザルトモードに移行
 	SetInputModeState(EPlayerInputMode::Result);
 
-	// Result 画面を開いた直後は先頭項目を選択状態にする
-	ResultCurrentIndex = 0;
-	bIsResultInputActive = false;
+	//Result画面を開いた直後は先頭項目を選択状態にする
+	m_ResultCurrentIndex = MainPlayerControllerConstants::InitialMenuIndex;
+	m_IsResultInputActive = false;
 
+	//演出アニメーション終了後に操作を受け付けるためのタイマーを開始
 	GetWorldTimerManager().SetTimer(
-		ResultIntroTimerHandle,
+		m_ResultIntroTimerHandle,
 		[this]()
 		{
-			// PCが死んでいないか、Widgetがまだあるかチェック
-			if (!IsValid(this) || !ResultWidget) return;
+			//PCが死んでいないか、Widgetがまだあるかチェック
+			if (!IsValid(this) || !m_ResultWidget) return;
 
-			// 入力解禁
-			bIsResultInputActive = true;
+			//入力解禁
+			m_IsResultInputActive = true;
 
-			ResultWidget->NotifyInput(EResultMenuInputType::MoveDownSelection, ResultCurrentIndex);
-
-			UE_LOG(LogTemp, Log, TEXT("Result UI Input Activated"));
+			//UI側に現在のフォーカス位置を通達
+			m_ResultWidget->NotifyInput(EResultMenuInputType::MoveDownSelection, m_ResultCurrentIndex);
 		},
-		ResultAnimationDuration, // 定義した秒数待つ
+		MainPlayerControllerConstants::ResultAnimationDuration, //定義した秒数待つ
 		false
 	);
 }
 
+//リザルトモード終了
 void AMainPlayerController::ExitResultMode()
 {
-	if (CurrentInputMode == EPlayerInputMode::Gameplay)
+	//既にゲームプレイモードなら何もしない
+	if (m_CurrentInputMode == EPlayerInputMode::Gameplay)
 	{
 		return;
 	}
 
-	if (GetWorldTimerManager().IsTimerActive(ResultIntroTimerHandle))
+	//稼働中のタイマーがあればクリアする
+	if (GetWorldTimerManager().IsTimerActive(m_ResultIntroTimerHandle))
 	{
-		GetWorldTimerManager().ClearTimer(ResultIntroTimerHandle);
+		GetWorldTimerManager().ClearTimer(m_ResultIntroTimerHandle);
 	}
 
+	//ゲームプレイモードへ復帰
 	SetInputModeState(EPlayerInputMode::Gameplay);
 }
 
+//入力モードの状態を設定
 void AMainPlayerController::SetInputModeState(EPlayerInputMode NewMode)
 {
-	// 既に同じモードなら処理しない
-	if (CurrentInputMode == NewMode)
+	//既に同じモードなら処理しない
+	if (m_CurrentInputMode == NewMode)
 	{
 		return;
 	}
 
-	CurrentInputMode = NewMode;
+	m_CurrentInputMode = NewMode;
 
 	ULocalPlayer* LocalPlayer = GetLocalPlayer();
 	if (!LocalPlayer) return;
@@ -101,19 +109,19 @@ void AMainPlayerController::SetInputModeState(EPlayerInputMode NewMode)
 		LocalPlayer->GetSubsystem<UEnhancedInputLocalPlayerSubsystem>();
 	if (!Subsystem) return;
 
-	// MappingContext は必ず一度全解除する
+	//MappingContextは必ず一度全解除する
 	Subsystem->ClearAllMappings();
 
 	if (NewMode == EPlayerInputMode::Gameplay)
 	{
-		// Gameplay 入力のみ有効
-		Subsystem->AddMappingContext(GameplayMappingContext, 0);
+		//Gameplay入力のみ有効
+		Subsystem->AddMappingContext(m_GameplayMappingContext, MainPlayerControllerConstants::DefaultMappingPriority);
 
-		// Result UI を閉じる
-		if (ResultWidget)
+		//ResultUIを閉じる
+		if (m_ResultWidget)
 		{
-			ResultWidget->RemoveFromParent();
-			ResultWidget = nullptr;
+			m_ResultWidget->RemoveFromParent();
+			m_ResultWidget = nullptr;
 		}
 
 		FInputModeGameOnly InputMode;
@@ -121,87 +129,89 @@ void AMainPlayerController::SetInputModeState(EPlayerInputMode NewMode)
 	}
 	else
 	{
-		// Result 入力のみ有効
-		Subsystem->AddMappingContext(ResultMappingContext, 0);
+		//Result入力のみ有効
+		Subsystem->AddMappingContext(m_ResultMappingContext, MainPlayerControllerConstants::DefaultMappingPriority);
 
-		if (ResultWidgetClass)
+		//UIを生成して画面に最前面で追加
+		if (m_ResultWidgetClass)
 		{
-			ResultWidget = CreateWidget<UResultWidget>(this, ResultWidgetClass);
-			ResultWidget->AddToViewport(200);
-
+			m_ResultWidget = CreateWidget<UResultWidget>(this, m_ResultWidgetClass);
+			if (m_ResultWidget)
+			{
+				m_ResultWidget->AddToViewport(MainPlayerControllerConstants::ResultWidgetZOrder);
+			}
 		}
 
 		FInputModeGameOnly InputMode;
-
 		SetInputMode(InputMode);
 		bShowMouseCursor = false;
 	}
 }
 
+//決定入力時のコールバック
 void AMainPlayerController::ResultDecision(const FInputActionValue& Value)
 {
-	// Result モード以外では処理しない
-	if (CurrentInputMode != EPlayerInputMode::Result) return;
+	//Resultモード以外では処理しない
+	if (m_CurrentInputMode != EPlayerInputMode::Result) return;
 
-	if (!ResultWidget) return;
+	if (!m_ResultWidget) return;
 
-	if (!bIsResultInputActive) return;
+	if (!m_IsResultInputActive) return;
 
-	// アニメーション再生中は入力を受け付けない
-	if (ResultWidget->GetIsAnimationPlaying()) return;
+	//アニメーション再生中は入力を受け付けない
+	if (m_ResultWidget->GetIsAnimationPlaying()) return;
 
-	// 決定入力を Widget に通知する
-	// Controller は「何が押されたか」と「どこを選んでいるか」だけを渡す
-	ResultWidget->NotifyInput(EResultMenuInputType::Decision,ResultCurrentIndex);
+	//決定入力をWidgetに通知する
+	//Controllerは「何が押されたか」と「どこを選んでいるか」だけを渡す
+	m_ResultWidget->NotifyInput(EResultMenuInputType::Decision, m_ResultCurrentIndex);
 
-	if (LevelAssetToLoad.IsValidIndex(ResultCurrentIndex)
-		&& !LevelAssetToLoad[ResultCurrentIndex].IsNull())
+	//選択中のインデックスに応じたレベルが登録されていればレベル遷移を行う
+	if (m_LevelAssetToLoad.IsValidIndex(m_ResultCurrentIndex)
+		&& !m_LevelAssetToLoad[m_ResultCurrentIndex].IsNull())
 	{
-		UGameplayStatics::OpenLevelBySoftObjectPtr(this,LevelAssetToLoad[ResultCurrentIndex]);
+		UGameplayStatics::OpenLevelBySoftObjectPtr(this, m_LevelAssetToLoad[m_ResultCurrentIndex]);
 	}
 }
 
+//上移動入力時のコールバック
 void AMainPlayerController::ResultMoveUp(const FInputActionValue& Value)
 {
-	if (CurrentInputMode != EPlayerInputMode::Result) return;
-	if (!ResultWidget) return;
+	if (m_CurrentInputMode != EPlayerInputMode::Result) return;
+	if (!m_ResultWidget) return;
 
-	if (!bIsResultInputActive) return;
+	if (!m_IsResultInputActive) return;
 
-	// アニメーション中はカーソル移動させない
-	if (ResultWidget->GetIsAnimationPlaying()) return;
+	//アニメーション中はカーソル移動させない
+	if (m_ResultWidget->GetIsAnimationPlaying()) return;
 
-	--ResultCurrentIndex;
+	--m_ResultCurrentIndex;
 
-	// 範囲外に出た場合はループさせる
-	if (ResultCurrentIndex < 0)
+	//範囲外に出た場合はループさせる
+	if (m_ResultCurrentIndex < MainPlayerControllerConstants::InitialMenuIndex)
 	{
-		ResultCurrentIndex = MaxResultMenuIndex;
+		m_ResultCurrentIndex = MainPlayerControllerConstants::MaxResultMenuIndex;
 	}
 
-	UE_LOG(LogTemp, Log, TEXT("ResultCurrentIndex = %d"), ResultCurrentIndex);
-
-	ResultWidget->NotifyInput(EResultMenuInputType::MoveUpSelection, ResultCurrentIndex);
+	m_ResultWidget->NotifyInput(EResultMenuInputType::MoveUpSelection, m_ResultCurrentIndex);
 }
 
+//下移動入力時のコールバック
 void AMainPlayerController::ResultMoveDown(const FInputActionValue& Value)
 {
-	if (CurrentInputMode != EPlayerInputMode::Result) return;
-	if (!ResultWidget) return;
+	if (m_CurrentInputMode != EPlayerInputMode::Result) return;
+	if (!m_ResultWidget) return;
 
-	if (!bIsResultInputActive) return;
+	if (!m_IsResultInputActive) return;
 
-	if (ResultWidget->GetIsAnimationPlaying()) return;
+	if (m_ResultWidget->GetIsAnimationPlaying()) return;
 
-	++ResultCurrentIndex;
+	++m_ResultCurrentIndex;
 
-	if (ResultCurrentIndex > MaxResultMenuIndex)
+	//上限を超えた場合はループさせる
+	if (m_ResultCurrentIndex > MainPlayerControllerConstants::MaxResultMenuIndex)
 	{
-		ResultCurrentIndex = 0;
+		m_ResultCurrentIndex = MainPlayerControllerConstants::InitialMenuIndex;
 	}
 
-	UE_LOG(LogTemp, Log, TEXT("ResultCurrentIndex = %d"), ResultCurrentIndex);
-
-	ResultWidget->NotifyInput(EResultMenuInputType::MoveDownSelection, ResultCurrentIndex);
+	m_ResultWidget->NotifyInput(EResultMenuInputType::MoveDownSelection, m_ResultCurrentIndex);
 }
-

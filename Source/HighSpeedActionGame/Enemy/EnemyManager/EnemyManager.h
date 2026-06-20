@@ -11,10 +11,8 @@
 
 class UEnemyPool;
 class AEnemyBase;
+class AEnemyFactory;
 
-/**
- *
- */
 UCLASS()
 class HIGHSPEEDACTIONGAME_API UEnemyManager : public UWorldSubsystem
 {
@@ -27,17 +25,17 @@ public:
 	virtual void Deinitialize() override;
 
 	//プール初期化のメソッド
-	void InitializePool();
+	void InitializePool(const AEnemyFactory* _factory);
 
 	//プールから敵を生成するメソッド//レベルに配置したファクトリー側で呼ぶ
-	void ActivateEnemy(const FString _name, const FVector _location, const FRotator _rotation, const FEnemyTypeFlags _enemyFlags);
-	void ActivateEnemy(const EnemyType _type, const FVector _location, const FRotator _rotation, const FEnemyTypeFlags _enemyFlags);
+	void ActivateEnemy(const FString& _name, const FVector& _location, const FRotator& _rotation, const FEnemyTypeFlags& _enemyFlags);		//敵の名前を使用する
+	void ActivateEnemy(const EnemyType _type, const FVector& _location, const FRotator& _rotation, const FEnemyTypeFlags& _enemyFlags);		//敵のTypeを使用する
 
 	//アクティブな敵を全てポーズ状態にする
 	void PauseAllActiveEnemies(const bool _isPause);
 
 	//座標から一番近い敵取得
-	const AEnemyBase* GetClosestActiveEnemyFromCoordinates(const FVector _location);
+	const AEnemyBase* GetClosestActiveEnemyFromCoordinates(const FVector& _location);
 
 	//アクティブな敵配列から除外する
 	void RemoveFromActiveEnemies(const AEnemyBase* _enemy);
@@ -61,7 +59,5 @@ private:
 	TMap<FString, TObjectPtr<UEnemyPool>> m_EnemyPools;
 
 	UPROPERTY()
-	bool m_IsPoolCreated;//プールが生成されているか
-
-
+	bool m_IsPoolCreated = false;//プールが生成されているか
 };

@@ -29,7 +29,8 @@ private:
 
 	UFUNCTION()
 	void OnJustEvasiveOccurred(const AActor* Attacker);
-public:
+
+protected:
 	UPROPERTY(EditAnywhere, BlueprintReadWrite, Category = "Dash")
 	float DashSpeed = 1200.f;//ダッシュ速度
 
@@ -39,7 +40,6 @@ public:
 	UPROPERTY(EditAnywhere, BlueprintReadOnly, Category = "Dash")
 	bool m_IsJustEvasion = false;
 
-private:
 	//使用しているキャラクター
 	TWeakObjectPtr<ACharacter> CachedCharacter = nullptr;
 

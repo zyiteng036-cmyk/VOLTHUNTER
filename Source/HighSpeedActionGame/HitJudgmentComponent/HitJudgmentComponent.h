@@ -37,9 +37,6 @@ public:
 	//表示非表示セット
 	void SetAttackCollisionDetectionVisible(const bool _isVisible);
 
-	//半径セット
-	void SetRadius(const float _radius);
-
 	//ヒット時に通知を送るメソッド
 	UFUNCTION()
 	void NotifyAttackHit(const AActor* _hitActor)const;
@@ -60,5 +57,5 @@ protected:
 
 public:
 	UPROPERTY(BlueprintAssignable)
-	FOnAttackHit OnAttackHit;//デリケード
+	FOnAttackHit OnAttackHit;//デリケート
 };

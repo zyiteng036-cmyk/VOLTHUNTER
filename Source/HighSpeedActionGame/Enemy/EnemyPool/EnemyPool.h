@@ -22,7 +22,7 @@ class HIGHSPEEDACTIONGAME_API UEnemyPool : public UObject
 
 public:
 	//プール作成//第一引数：敵生成クラス//第二引数：生成する敵の名前//第三引数：プールサイズ
-	void GeneratePool(AEnemyFactory* _enemyFactiry, const FString _name, const int _poolSize);
+	void GeneratePool(const AEnemyFactory& _enemyFactiry, const FString _name, const int _poolSize);
 
     // オブジェクト破棄開始時の処理
 	virtual void BeginDestroy() override;

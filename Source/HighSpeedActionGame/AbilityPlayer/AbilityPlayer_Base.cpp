@@ -11,23 +11,22 @@
 
 
 
+UAbilityPlayer_Base::UAbilityPlayer_Base()
+{
+	InstancingPolicy = EGameplayAbilityInstancingPolicy::InstancedPerActor;
+}
+
 void UAbilityPlayer_Base::ActivateAbility(const FGameplayAbilitySpecHandle Handle,
 	const FGameplayAbilityActorInfo* ActorInfo,
 	const FGameplayAbilityActivationInfo ActivationInfo,
 	const FGameplayEventData* TriggerEventData)
 {
-	//デバッグ
-	if (GEngine)
+	//コストやクールダウンの適用
+	if (!CommitAbility(Handle, ActorInfo, ActivationInfo))
 	{
-		FString MontageName = AttackMontage ? AttackMontage->GetName() : TEXT("None");
-		GEngine->AddOnScreenDebugMessage(
-			-1,
-			2.f,
-			FColor::Yellow,
-			FString::Printf(TEXT("Activate Ability: %s"), *MontageName)
-		);
+		EndAbility(Handle, ActorInfo, ActivationInfo, true, true);
+		return;
 	}
-
 
 	//Montageが無い場合は終了
 	if (!AttackMontage)
@@ -39,35 +38,45 @@ void UAbilityPlayer_Base::ActivateAbility(const FGameplayAbilitySpecHandle Handl
 
 
 	//Montage再生タスク作成
-	UAbilityTask_PlayMontageAndWait* MontageTask =
-		UAbilityTask_PlayMontageAndWait::CreatePlayMontageAndWaitProxy(this, NAME_None, AttackMontage);
+	UAbilityTask_PlayMontageAndWait* MontageTask = UAbilityTask_PlayMontageAndWait::CreatePlayMontageAndWaitProxy(this, NAME_None, AttackMontage);
 
-	MontageTask->OnCompleted.AddDynamic(this, &UAbilityPlayer_Base::OnMontageEnded);
-	MontageTask->OnInterrupted.AddDynamic(this, &UAbilityPlayer_Base::OnMontageEnded);
-	MontageTask->OnCancelled.AddDynamic(this, &UAbilityPlayer_Base::OnMontageEnded);
-	MontageTask->OnBlendOut.AddDynamic(this, &UAbilityPlayer_Base::OnMontageEnded);
+	if (MontageTask)
+	{
+		MontageTask->OnCompleted.AddDynamic(this, &UAbilityPlayer_Base::OnMontageEnded);
+		MontageTask->OnInterrupted.AddDynamic(this, &UAbilityPlayer_Base::OnMontageEnded);
+		MontageTask->OnCancelled.AddDynamic(this, &UAbilityPlayer_Base::OnMontageEnded);
+		MontageTask->OnBlendOut.AddDynamic(this, &UAbilityPlayer_Base::OnMontageEnded);
 
-	//タスクを有効化
-	MontageTask->ReadyForActivation();
+		//タスクを有効化
+		MontageTask->ReadyForActivation();
+	}
+
+	else
+	{
+		//タスク生成失敗時のフェイルセーフ
+		EndAbility(Handle, ActorInfo, ActivationInfo, true, false);
+	}
 }
 
 //Montage終了時
 void UAbilityPlayer_Base::OnMontageEnded()
 {
-
-
+	//安全確保と早期リターン
 	if (CurrentActorInfo && CurrentActorInfo->AvatarActor.IsValid())
 	{
-		if (APlayerCharacter* PlayerCharacter = Cast<APlayerCharacter>(CurrentActorInfo->AvatarActor.Get()))
+		APlayerCharacter* PlayerCharacter = Cast<APlayerCharacter>(CurrentActorInfo->AvatarActor.Get());
+
+		if (PlayerCharacter)
 		{
 			PlayerCharacter->SetIsHit(false);
+
 			if (UPlayer_SkillComponent* SkillComp = PlayerCharacter->FindComponentByClass<UPlayer_SkillComponent>())
 			{
 				SkillComp->SetCanSkillActive(true);
 			}
-
 		}
 	}
+
 	//Abilityを終了
 	EndAbility(CurrentSpecHandle, CurrentActorInfo, CurrentActivationInfo, true, false);
 
@@ -77,16 +86,20 @@ void UAbilityPlayer_Base::EndAbility(const FGameplayAbilitySpecHandle Handle, co
 {
 	Super::EndAbility(Handle, ActorInfo, ActivationInfo, bReplicateEndAbility, bWasCancelled);
 
-	if (APlayerCharacter* Player = Cast<APlayerCharacter>(ActorInfo->AvatarActor))
-	{
-		if (UPlayer_AttackComponent* AttackComp =
-			Player->FindComponentByClass<UPlayer_AttackComponent>())
-		{
-			if (AttackComp->GetCanBufferAttack() || AttackComp->GetNextAttackRequested())return;
+	//早期リターンでネストを浅くする
+	if (!ActorInfo || !ActorInfo->AvatarActor.IsValid()) return;
 
-			AttackComp->SetIsAttack(false);
-		}
-	}
+	APlayerCharacter* Player = Cast<APlayerCharacter>(ActorInfo->AvatarActor.Get());
+	if (!Player) return;
+
+	UPlayer_AttackComponent* AttackComp = Player->FindComponentByClass<UPlayer_AttackComponent>();
+	if (!AttackComp) return;
+
+	//コンボが予約されている、または先行入力受付中の場合は攻撃状態を解除しない
+	if (AttackComp->GetCanBufferAttack() || AttackComp->GetNextAttackRequested()) return;
+
+	//完全に攻撃が終わったのでフラグをオフにする
+	AttackComp->SetIsAttack(false);
 }
 
 bool UAbilityPlayer_Base::CanActivateAbility(const FGameplayAbilitySpecHandle Handle, const FGameplayAbilityActorInfo* ActorInfo, const FGameplayTagContainer* SourceTags, const FGameplayTagContainer* TargetTags, FGameplayTagContainer* OptionalRelevantTags) const
