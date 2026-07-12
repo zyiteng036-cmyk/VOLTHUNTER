@@ -2,7 +2,7 @@
 
 
 #include "Enemy_Grunt.h"
-#include "../PlayerCharacter.h"
+#include "../PlayerCharacter/PlayerCharacter.h"
 #include "GameFramework/CharacterMovementComponent.h"
 #include "Kismet//KismetMathLibrary.h"
 #include "Perception/AISenseConfig_Sight.h"

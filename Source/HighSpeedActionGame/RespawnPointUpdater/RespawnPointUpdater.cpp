@@ -8,7 +8,7 @@
 #include "Kismet/GameplayStatics.h"
 #include "../GameMode/GameMode_Ingame.h"
 #include "../Scanner/ScannerActor.h"
-#include "../PlayerCharacter.h"
+#include "../PlayerCharacter/PlayerCharacter.h"
 
 // Sets default values
 ARespawnPointUpdater::ARespawnPointUpdater()

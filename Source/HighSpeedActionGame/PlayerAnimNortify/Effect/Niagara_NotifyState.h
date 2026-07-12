@@ -1,48 +1,52 @@
 //担当
 //伊藤直樹
 
-//Niagaraを発動させるクラス
+//-----------------------------------------------------
+//Niagara再生NotifyState
+//
+//指定ソケットへNiagaraを生成し、NotifyState終了時に停止する
+//-----------------------------------------------------
 
 #pragma once
 
 #include "CoreMinimal.h"
 #include "Animation/AnimNotifies/AnimNotifyState.h"
-#include "NiagaraSystem.h"
-#include "NiagaraComponent.h"
 #include "Niagara_NotifyState.generated.h"
 
-/**
- * 
- */
+class UNiagaraComponent;
+class UNiagaraSystem;
+
 UCLASS()
 class HIGHSPEEDACTIONGAME_API UNiagara_NotifyState : public UAnimNotifyState
 {
 	GENERATED_BODY()
+
 public:
-	// NotifyState開始
+	//Niagaraエフェクトを生成
 	virtual void NotifyBegin(USkeletalMeshComponent* MeshComp, UAnimSequenceBase* Animation, float TotalDuration, const FAnimNotifyEventReference& EventReference) override;
-	
-	// NotifyState終了
+
+	//生成したNiagaraエフェクトを停止
 	virtual void NotifyEnd(USkeletalMeshComponent* MeshComp, UAnimSequenceBase* Animation, const FAnimNotifyEventReference& EventReference) override;
-public:
+
+protected:
 	//再生するNiagaraエフェクト
 	UPROPERTY(EditAnywhere, BlueprintReadOnly, Category = "Niagara")
-	UNiagaraSystem* NiagaraSystem;
+	TObjectPtr<UNiagaraSystem> NiagaraSystem = nullptr;
 
-	// アタッチするソケット名
+	//エフェクトを取り付けるソケット
 	UPROPERTY(EditAnywhere, BlueprintReadOnly, Category = "Niagara")
-	FName AttachSocketName;
+	FName AttachSocketName = NAME_None;
 
-	// 位置オフセット
+	//ソケットからの位置オフセット
 	UPROPERTY(EditAnywhere, BlueprintReadOnly, Category = "Niagara")
-	FVector LocationOffset;
+	FVector LocationOffset = FVector::ZeroVector;
 
-	// 回転オフセット
+	//ソケットからの回転オフセット
 	UPROPERTY(EditAnywhere, BlueprintReadOnly, Category = "Niagara")
-	FRotator RotationOffset;
+	FRotator RotationOffset = FRotator::ZeroRotator;
 
 private:
-	// Begin と End を結びつけるための保持用
+	//NotifyState中に生成したNiagaraComponent
 	UPROPERTY()
-	UNiagaraComponent* SpawnedNiagara;
+	TObjectPtr<UNiagaraComponent> SpawnedNiagara = nullptr;
 };

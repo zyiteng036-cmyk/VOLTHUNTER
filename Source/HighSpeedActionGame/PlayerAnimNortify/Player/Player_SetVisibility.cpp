@@ -1,57 +1,44 @@
-// Fill out your copyright notice in the Description page of Project Settings.
-
-
 #include "Player_SetVisibility.h"
-#include "Components/SkeletalMeshComponent.h"
-#include "NiagaraComponent.h"
 #include "../../PlayerSword/PlayerSword.h"
+#include "Components/SkeletalMeshComponent.h"
+#include "GameFramework/Actor.h"
 
-void UPlayer_SetVisibility::NotifyBegin(USkeletalMeshComponent* MeshComp, UAnimSequenceBase* Animation, float TotalDuration)
+//プレイヤーと剣を非表示にする
+void UPlayer_SetVisibility::NotifyBegin(USkeletalMeshComponent* MeshComp, UAnimSequenceBase* Animation, float TotalDuration, const FAnimNotifyEventReference& EventReference)
 {
-	//メッシュコンポーネントが無効な場合は処理を抜ける
-	if (!MeshComp) return;
+	Super::NotifyBegin(MeshComp, Animation, TotalDuration, EventReference);
 
-	//プレイヤー本体を非表示に設定
-	MeshComp->SetVisibility(false,false);
-
-	//オーナーアクターを取得してアタッチされているアクタを走査
-	if (AActor* OwnerActor = MeshComp->GetOwner())
-	{
-		TArray<AActor*> AttachedActors;
-		OwnerActor->GetAttachedActors(AttachedActors);
-
-		for (AActor* AttachedActor : AttachedActors)
-		{
-			//アタッチされているアクタが武器(APlayerSword)であれば非表示にする
-			if (APlayerSword* Sword = Cast<APlayerSword>(AttachedActor))
-			{
-				Sword->SetSwordMeshVisibility(false);
-			}
-		}
-	}
+	SetPlayerVisibility(MeshComp, false);
 }
 
-void UPlayer_SetVisibility::NotifyEnd(USkeletalMeshComponent* MeshComp, UAnimSequenceBase* Animation)
+//プレイヤーと剣を再表示する
+void UPlayer_SetVisibility::NotifyEnd(USkeletalMeshComponent* MeshComp, UAnimSequenceBase* Animation, const FAnimNotifyEventReference& EventReference)
 {
-	//メッシュコンポーネントが無効な場合は処理を抜ける
+	Super::NotifyEnd(MeshComp, Animation, EventReference);
+
+	SetPlayerVisibility(MeshComp, true);
+}
+
+//プレイヤー本体と装備中の剣の表示状態を切り替える
+void UPlayer_SetVisibility::SetPlayerVisibility(USkeletalMeshComponent* MeshComp, bool bVisible) const
+{
 	if (!MeshComp) return;
 
-	//プレイヤー本体を表示に設定
-	MeshComp->SetVisibility(true, false);
+	//プレイヤー本体のMeshだけを切り替える
+	MeshComp->SetVisibility(bVisible, false);
 
-	//オーナーアクターを取得してアタッチされているアクタを走査
-	if (AActor* OwnerActor = MeshComp->GetOwner())
+	AActor* OwnerActor = MeshComp->GetOwner();
+	if (!OwnerActor) return;
+
+	TArray<AActor*> AttachedActors;
+	OwnerActor->GetAttachedActors(AttachedActors);
+
+	//プレイヤーに取り付けられている剣も同じ表示状態にする
+	for (AActor* AttachedActor : AttachedActors)
 	{
-		TArray<AActor*> AttachedActors;
-		OwnerActor->GetAttachedActors(AttachedActors);
+		APlayerSword* Sword = Cast<APlayerSword>(AttachedActor);
+		if (!Sword) continue;
 
-		for (AActor* AttachedActor : AttachedActors)
-		{
-			//アタッチされているアクタが武器(APlayerSword)であれば表示にする
-			if (APlayerSword* Sword = Cast<APlayerSword>(AttachedActor))
-			{
-				Sword->SetSwordMeshVisibility(true);
-			}
-		}
+		Sword->SetSwordMeshVisibility(bVisible);
 	}
 }

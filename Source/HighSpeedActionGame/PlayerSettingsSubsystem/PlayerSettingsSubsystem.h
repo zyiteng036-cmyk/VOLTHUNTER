@@ -1,7 +1,11 @@
 //担当：佐々木奏太 クラス生成者
-//伊藤直樹　中身担当
+//伊藤直樹 中身担当
 
-//プレイヤーの設定等を保存しておくゲームインスタンスサブシステム
+//-----------------------------------------------------
+//プレイヤー設定Subsystem
+//
+//カメラ感度、カメラ反転、画面の明るさを管理する
+//-----------------------------------------------------
 
 #pragma once
 
@@ -9,52 +13,64 @@
 #include "Subsystems/GameInstanceSubsystem.h"
 #include "PlayerSettingsSubsystem.generated.h"
 
-/**
- *
- */
 UCLASS()
 class HIGHSPEEDACTIONGAME_API UPlayerSettingsSubsystem : public UGameInstanceSubsystem
 {
 	GENERATED_BODY()
 
-
 public:
-	//=== カメラ感度 ===
-	UFUNCTION(BlueprintCallable, Category = "PlayerSettings|Camera")
-	void SetCameraSensitivity(float _sensitivity) { m_CameraSensitivity = _sensitivity; }
+	//Subsystemを初期化
+	virtual void Initialize(FSubsystemCollectionBase& Collection) override;
 
+	//Subsystemを終了
+	virtual void Deinitialize() override;
+
+	//カメラ感度を設定
+	UFUNCTION(BlueprintCallable, Category = "PlayerSettings|Camera")
+	void SetCameraSensitivity(float Sensitivity) { m_CameraSensitivity = Sensitivity; }
+
+	//カメラ感度を取得
 	UFUNCTION(BlueprintPure, Category = "PlayerSettings|Camera")
-	float GetCameraSensitivity() const { return m_CameraSensitivity; } // const 追加
+	float GetCameraSensitivity() const { return m_CameraSensitivity; }
 
-	//=== カメラ反転 (X軸) ===
+	//X軸のカメラ反転を設定
 	UFUNCTION(BlueprintCallable, Category = "PlayerSettings|Camera")
-	void SetInvertCameraX(bool _bInvert) { m_bInvertCameraX = _bInvert; }
+	void SetInvertCameraX(bool bInvert) { m_bInvertCameraX = bInvert; }
 
+	//X軸のカメラ反転を取得
 	UFUNCTION(BlueprintPure, Category = "PlayerSettings|Camera")
 	bool GetInvertCameraX() const { return m_bInvertCameraX; }
 
-	//=== カメラ反転 (Y軸) ===
+	//Y軸のカメラ反転を設定
 	UFUNCTION(BlueprintCallable, Category = "PlayerSettings|Camera")
-	void SetInvertCameraY(bool _bInvert) { m_bInvertCameraY = _bInvert; }
+	void SetInvertCameraY(bool bInvert) { m_bInvertCameraY = bInvert; }
 
+	//Y軸のカメラ反転を取得
 	UFUNCTION(BlueprintPure, Category = "PlayerSettings|Camera")
 	bool GetInvertCameraY() const { return m_bInvertCameraY; }
 
-	//=== 画面の明るさ (Gamma) ===
+	//画面の明るさを設定
 	UFUNCTION(BlueprintCallable, Category = "PlayerSettings|Display")
-	void SetScreenBrightness(float _Brightness) { m_ScreenBrightness = _Brightness; }
+	void SetScreenBrightness(float Brightness);
 
+	//画面の明るさを取得
 	UFUNCTION(BlueprintPure, Category = "PlayerSettings|Display")
 	float GetScreenBrightness() const { return m_ScreenBrightness; }
-	virtual void Deinitialize()override;
+
+private:
+	//保存中の明るさを画面へ反映
+	void ApplyScreenBrightness() const;
+
 private:
 	//カメラ感度
 	float m_CameraSensitivity = 0.9f;
 
-	//カメラ反転
+	//X軸のカメラ反転
 	bool m_bInvertCameraX = false;
+
+	//Y軸のカメラ反転
 	bool m_bInvertCameraY = false;
 
 	//画面の明るさ
-	float m_ScreenBrightness = 2.2;
+	float m_ScreenBrightness = 2.2f;
 };

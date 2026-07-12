@@ -14,7 +14,6 @@ void UNiagaraSocketAnimNotifyState::NotifyBegin(USkeletalMeshComponent* MeshComp
 
 	if (!MeshComp || !NiagaraSystem)
 	{
-		UE_LOG(LogTemp, Warning, TEXT("NiagaraSocketAnimNotifyState::NotifyBegin - Invalid MeshComp or NiagaraSystem"));
 		return;
 	}
 
@@ -30,10 +29,6 @@ void UNiagaraSocketAnimNotifyState::NotifyBegin(USkeletalMeshComponent* MeshComp
 		true        // bAutoActivate
 	);
 
-	if (!SpawnedNiagaraComponent)
-	{
-		UE_LOG(LogTemp, Warning, TEXT("NiagaraSocketAnimNotifyState::NotifyBegin - Failed to spawn Niagara system on socket %s"), *SocketName.ToString());
-	}
 }
 
 void UNiagaraSocketAnimNotifyState::NotifyEnd(USkeletalMeshComponent* MeshComp, UAnimSequenceBase* Animation)

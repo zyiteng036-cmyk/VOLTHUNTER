@@ -21,7 +21,7 @@ struct FDamageInfo
 	FVector KnockbackDirection = FVector::ZeroVector;
 
 	UPROPERTY(EditAnywhere, BlueprintReadWrite)
-	const AActor* AttackActor = nullptr;
+	AActor* AttackActor = nullptr;
 
 	UPROPERTY(EditAnywhere, BlueprintReadWrite)
 	float HitStopTime = -1.f;

@@ -1,63 +1,51 @@
-// Fill out your copyright notice in the Description page of Project Settings.
-
-
 #include "AttackGetEnemyLocation.h"
-#include "../../PlayerCharacter.h"
-#include "../../PlayerComponent/Player_AttackComponent.h"
-#include "../../PlayerComponent/Player_MovementComponent.h"
+#include "../../PlayerCharacter/PlayerCharacter.h"
+#include "../../PlayerComponent/PlayerAttackComponent.h"
+#include "Components/SkeletalMeshComponent.h"
 
-
-void UAttackGetEnemyLocation::NotifyBegin(USkeletalMeshComponent* MeshComp, UAnimSequenceBase* Animation, float TotalDuration)
+//攻撃踏み込みを開始
+void UAttackGetEnemyLocation::NotifyBegin(USkeletalMeshComponent* MeshComp, UAnimSequenceBase* Animation, float TotalDuration, const FAnimNotifyEventReference& EventReference)
 {
-	if (!MeshComp) return;
+	Super::NotifyBegin(MeshComp, Animation, TotalDuration, EventReference);
 
-	if (APlayerCharacter* PlayerCharacter = Cast<APlayerCharacter>(MeshComp->GetOwner()))
-	{
-		if (UPlayer_AttackComponent* AttackComp = PlayerCharacter->FindComponentByClass<UPlayer_AttackComponent>())
-		{
-			if (UPlayer_MovementComponent* MovementComp = PlayerCharacter->FindComponentByClass<UPlayer_MovementComponent>())
-			{
+	UPlayerAttackComponent* AttackComponent = FindAttackComponent(MeshComp);
+	if (!AttackComponent) return;
 
-				//ジャンプ中なら
-				if (MovementComp->GetIsJump())
-				{
-					AttackComp->AirDashAttack();
-					return;
-				}
-				else {
-					AttackComp->AttackFirstStepBegin();
-				}
-			}
-		}
-	}
+	//現在の攻撃種別に応じた踏み込み処理を開始
+	AttackComponent->AttackFirstStepBegin();
 }
 
-void UAttackGetEnemyLocation::NotifyTick(USkeletalMeshComponent* MeshComp, UAnimSequenceBase* Animation, float FrameDeltaTime)
+//攻撃踏み込みを更新
+void UAttackGetEnemyLocation::NotifyTick(USkeletalMeshComponent* MeshComp, UAnimSequenceBase* Animation, float FrameDeltaTime, const FAnimNotifyEventReference& EventReference)
 {
-	if (!MeshComp) return;
+	Super::NotifyTick(MeshComp, Animation, FrameDeltaTime, EventReference);
 
-	if (APlayerCharacter* PlayerCharacter = Cast<APlayerCharacter>(MeshComp->GetOwner()))
-	{
-		if (UPlayer_AttackComponent* AttackComp = PlayerCharacter->FindComponentByClass<UPlayer_AttackComponent>())
-		{
-			//攻撃中の間合い詰め
-			AttackComp->AttackFirstStepTick();
-		}
-	}
+	UPlayerAttackComponent* AttackComponent = FindAttackComponent(MeshComp);
+	if (!AttackComponent) return;
 
+	//NotifyState中は毎フレーム踏み込み位置を更新
+	AttackComponent->AttackFirstStepTick();
 }
 
-void UAttackGetEnemyLocation::NotifyEnd(USkeletalMeshComponent* MeshComp, UAnimSequenceBase* Animation)
+//攻撃踏み込みを終了
+void UAttackGetEnemyLocation::NotifyEnd(USkeletalMeshComponent* MeshComp, UAnimSequenceBase* Animation, const FAnimNotifyEventReference& EventReference)
 {
-	if (!MeshComp) return;
+	Super::NotifyEnd(MeshComp, Animation, EventReference);
 
-	if (APlayerCharacter* PlayerCharacter = Cast<APlayerCharacter>(MeshComp->GetOwner()))
-	{
-		if (UPlayer_AttackComponent* AttackComp = PlayerCharacter->FindComponentByClass<UPlayer_AttackComponent>())
-		{
-			//攻撃中の間合い詰め
-			AttackComp->AttackFirstStepEnd();
-		}
-	}
+	UPlayerAttackComponent* AttackComponent = FindAttackComponent(MeshComp);
+	if (!AttackComponent) return;
 
+	//踏み込み終了時に移動状態を戻す
+	AttackComponent->AttackFirstStepEnd();
+}
+
+//Mesh所有者から攻撃コンポーネントを取得
+UPlayerAttackComponent* UAttackGetEnemyLocation::FindAttackComponent(USkeletalMeshComponent* MeshComp) const
+{
+	if (!MeshComp) return nullptr;
+
+	APlayerCharacter* PlayerCharacter = Cast<APlayerCharacter>(MeshComp->GetOwner());
+	if (!PlayerCharacter) return nullptr;
+
+	return PlayerCharacter->FindComponentByClass<UPlayerAttackComponent>();
 }

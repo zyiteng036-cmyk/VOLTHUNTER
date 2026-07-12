@@ -3,7 +3,7 @@
 
 #include "PlayerAttackAnimNotifyState.h"
 #include "../HitJudgmentComponent/HitJudgmentComponent.h"
-#include "../PlayerCharacter.h"
+#include "../PlayerCharacter/PlayerCharacter.h"
 
 void UPlayerAttackAnimNotifyState::NotifyBegin(USkeletalMeshComponent* MeshComp, UAnimSequenceBase* Animation, float TotalDuration, const FAnimNotifyEventReference& EventReference) {
 	if (!MeshComp) return;

@@ -1,79 +1,79 @@
-// Fill out your copyright notice in the Description page of Project Settings.
-
-
 #include "SkillEffect_NotifyState.h"
-#include "../../PlayerComponent/SkillComponent/ThunderTrailEffect.h"
-#include "GameFramework/Actor.h"
+#include "../../PlayerComponent/Skill/ThunderTrailEffect.h"
+#include "Components/SkeletalMeshComponent.h"
 #include "Engine/World.h"
+#include "GameFramework/Actor.h"
 
+//スキルエフェクトActorを生成
 void USkillEffect_NotifyState::NotifyBegin(USkeletalMeshComponent* MeshComp, UAnimSequenceBase* Animation, float TotalDuration, const FAnimNotifyEventReference& EventReference)
 {
-	if (!EffectClass || !MeshComp) return;
+	Super::NotifyBegin(MeshComp, Animation, TotalDuration, EventReference);
+
+	if (!MeshComp || !EffectClass) return;
 
 	UWorld* World = MeshComp->GetWorld();
-	if (World)
+	if (!World) return;
+
+	AActor* OwnerActor = MeshComp->GetOwner();
+
+	FActorSpawnParameters SpawnParameters;
+	SpawnParameters.Owner = OwnerActor;
+	SpawnParameters.SpawnCollisionHandlingOverride = ESpawnActorCollisionHandlingMethod::AlwaysSpawn;
+
+	FVector SpawnLocation = FVector::ZeroVector;
+	FRotator SpawnRotation = FRotator::ZeroRotator;
+
+	//ソケット指定がある場合はソケットTransformを使用
+	if (SocketName != NAME_None)
 	{
-		FActorSpawnParameters SpawnParams;
-		SpawnParams.Owner = MeshComp->GetOwner();
-		SpawnParams.SpawnCollisionHandlingOverride = ESpawnActorCollisionHandlingMethod::AlwaysSpawn;
-
-		FVector SpawnLoc = FVector::ZeroVector;
-		FRotator SpawnRot = FRotator::ZeroRotator;
-
-		if (SocketName != NAME_None)
-		{
-			SpawnLoc = MeshComp->GetSocketLocation(SocketName);
-			SpawnRot = MeshComp->GetSocketRotation(SocketName);
-		}
-		else
-		{
-			// 指定がなければ足元（コンポーネント原点）
-			SpawnLoc = MeshComp->GetComponentLocation();
-			SpawnRot = MeshComp->GetComponentRotation();
-		}
-
-		// オフセット（微調整）を加算
-		SpawnLoc += LocationOffset;
-
-
-		// 生成
-		AActor* SpawnedActor = World->SpawnActor<AActor>(EffectClass, SpawnLoc, SpawnRot, SpawnParams);
-
-		if (SpawnedActor)
-		{
-			SpawnedActor->AttachToComponent(MeshComp, FAttachmentTransformRules::SnapToTargetNotIncludingScale, SocketName);
-
-			SpawnedActor->Tags.Add(TraceTag);
-		}
+		SpawnLocation = MeshComp->GetSocketLocation(SocketName);
+		SpawnRotation = MeshComp->GetSocketRotation(SocketName);
 	}
+	else
+	{
+		//ソケット未指定時はMeshComponentのTransformを使用
+		SpawnLocation = MeshComp->GetComponentLocation();
+		SpawnRotation = MeshComp->GetComponentRotation();
+	}
+
+	SpawnLocation += LocationOffset;
+
+	//指定位置へエフェクトActorを生成
+	AActor* SpawnedActor = World->SpawnActor<AActor>(EffectClass, SpawnLocation, SpawnRotation, SpawnParameters);
+	if (!SpawnedActor) return;
+
+	//NotifyState中はMeshまたは指定ソケットへ追従させる
+	SpawnedActor->AttachToComponent(MeshComp, FAttachmentTransformRules::SnapToTargetNotIncludingScale, SocketName);
+
+	//NotifyEndで対象を識別できるようタグを設定
+	SpawnedActor->Tags.Add(TraceTag);
 }
 
+//生成したスキルエフェクトを終了
 void USkillEffect_NotifyState::NotifyEnd(USkeletalMeshComponent* MeshComp, UAnimSequenceBase* Animation, const FAnimNotifyEventReference& EventReference)
 {
+	Super::NotifyEnd(MeshComp, Animation, EventReference);
+
 	if (!MeshComp) return;
 
-	// アタッチされている子アクターから、自分が生成した雷を探す
+	AActor* OwnerActor = MeshComp->GetOwner();
+	if (!OwnerActor) return;
+
 	TArray<AActor*> AttachedActors;
+	OwnerActor->GetAttachedActors(AttachedActors);
 
-	if (AActor* Owner = MeshComp->GetOwner())
+	for (AActor* ChildActor : AttachedActors)
 	{
-		Owner->GetAttachedActors(AttachedActors);
-	}
+		if (!ChildActor || !ChildActor->ActorHasTag(TraceTag)) continue;
 
-	for (AActor* Child : AttachedActors)
-	{
-		if (Child && Child->ActorHasTag(TraceTag))
+		//ThunderTrailは即破棄せず専用フェード処理へ移行
+		if (AThunderTrailEffect* ThunderTrailEffect = Cast<AThunderTrailEffect>(ChildActor))
 		{
-			// 専用クラスにキャストして終了処理を呼ぶ
-			if (AThunderTrailEffect* Thunder = Cast<AThunderTrailEffect>(Child))
-			{
-				Thunder->BeginFadeOut();
-			}
-			else
-			{
-				// 万が一違うクラスなら強制削除
-				Child->Destroy();
-			}
+			ThunderTrailEffect->BeginFadeOut();
+			continue;
 		}
+
+		//専用終了処理を持たないActorはその場で破棄
+		ChildActor->Destroy();
 	}
 }

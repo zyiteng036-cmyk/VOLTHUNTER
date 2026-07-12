@@ -1,14 +1,15 @@
 //担当
 //伊藤直樹
 
-//プレイヤーが装備し、攻撃時のエフェクト(トレイル)やメッシュの可視性を制御する武器クラス
+//剣を管理するクラス
+
 #pragma once
 
 #include "CoreMinimal.h"
 #include "GameFramework/Actor.h"
 #include "PlayerSword.generated.h"
 
-class UStaticMeshComponent;
+class UStaticMeshComponent; 
 class UNiagaraComponent;
 class UNiagaraSystem;
 
@@ -16,39 +17,34 @@ UCLASS()
 class HIGHSPEEDACTIONGAME_API APlayerSword : public AActor
 {
 	GENERATED_BODY()
-
-public:
-	//アクターのデフォルト値を設定
+	
+public:	
+	// Sets default values for this actor's properties
 	APlayerSword();
 
 public:
-	//ゲーム開始時またはスポン時に呼び出される初期化処理
+	// Called when the game starts or when spawned
 	virtual void BeginPlay() override;
 
-	//攻撃開始/終了によるエフェクトの制御
-	void SetAttackActive(bool bActive);
+	//攻撃開始/終了
+	void SetAttackActive(bool _Active);
 
-	//剣メッシュの表示・非表示切り替え
 	void SetSwordMeshVisibility(bool bVisible);
-
 protected:
-	//刀メッシュ(StaticMesh)
+	// 刀メッシュ（StaticMesh）
 	UPROPERTY(EditAnywhere, BlueprintReadWrite, Category = "Weapon")
-	TObjectPtr<UStaticMeshComponent> m_SwordMesh = nullptr;
+	TObjectPtr<UStaticMeshComponent> m_SwordMesh;
 
-	//所有者へアタッチする際のソケット名
 	UPROPERTY(EditDefaultsOnly, Category = "Attach")
-	FName m_AttachSocketName = NAME_None;
+	FName AttachSocketName;
 
-	//武器の軌跡(トレイル)用演出エフェクトアセット
 	UPROPERTY(EditDefaultsOnly, BlueprintReadOnly, Category = "Trail")
-	TObjectPtr<UNiagaraSystem> m_TrailNiagara = nullptr;
+	TObjectPtr<UNiagaraSystem> m_TrailNiagara;
 
-	//内部管理用トレイルコンポーネント
+	// 内部管理用
 	UPROPERTY(VisibleAnywhere, Category = "Trail")
-	TObjectPtr<UNiagaraComponent> m_TrailComponent = nullptr;
+	TObjectPtr<UNiagaraComponent> m_TrailComponent;
 
 private:
-	//トレイルが初期化されたかどうかのフラグ
-	bool m_TrailInitialized = false;
+	bool m_TrailInitialized;
 };

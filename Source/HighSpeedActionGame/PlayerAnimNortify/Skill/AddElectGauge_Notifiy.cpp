@@ -1,24 +1,24 @@
-// Fill out your copyright notice in the Description page of Project Settings.
-
-
 #include "AddElectGauge_Notifiy.h"
-#include "../../PlayerCharacter.h"
-#include "../../PlayerComponent/Player_ElectroGaugeComponent.h"
+#include "../../PlayerCharacter/PlayerCharacter.h"
+#include "../../PlayerComponent/PlayerElectroGaugeComponent.h"
+#include "Components/SkeletalMeshComponent.h"
 
-void UAddElectGauge_Notifiy::Notify(USkeletalMeshComponent* MeshComp, UAnimSequenceBase* Animation)
+//çUåÇñΩíÜéûÇ…ìdóÕÉQÅ[ÉWÇâ¡éZ
+void UAddElectGauge_Notifiy::Notify(USkeletalMeshComponent* MeshComp, UAnimSequenceBase* Animation, const FAnimNotifyEventReference& EventReference)
 {
+	Super::Notify(MeshComp, Animation, EventReference);
+
 	if (!MeshComp) return;
 
-	APlayerCharacter* Player =
-		Cast<APlayerCharacter>(MeshComp->GetOwner());
-	if (!Player) return;
+	APlayerCharacter* PlayerCharacter = Cast<APlayerCharacter>(MeshComp->GetOwner());
+	if (!PlayerCharacter) return;
 
-	UPlayer_ElectroGaugeComponent* ElectroComp =
-		Player->FindComponentByClass<UPlayer_ElectroGaugeComponent>();
-	if (!ElectroComp) return;
-	//ÉqÉbÉgÇµÇΩÇ∆Ç´
-	if (Player->GetIsHit())
-	{
-		ElectroComp->AddElectroGauge(m_AddGaugeAmount);
-	}
+	//çUåÇÇ™ñΩíÜÇµÇƒÇ¢Ç»Ç¢èÍçáÇÕÉQÅ[ÉWÇâ¡éZÇµÇ»Ç¢
+	if (!PlayerCharacter->GetIsHit()) return;
+
+	UPlayerElectroGaugeComponent* ElectroGaugeComponent = PlayerCharacter->FindComponentByClass<UPlayerElectroGaugeComponent>();
+	if (!ElectroGaugeComponent) return;
+
+	//NotifyÇ…ê›íËÇ≥ÇÍÇΩó Çåªç›ÇÃìdóÕÉQÅ[ÉWÇ÷â¡éZ
+	ElectroGaugeComponent->AddElectroGauge(m_AddGaugeAmount);
 }

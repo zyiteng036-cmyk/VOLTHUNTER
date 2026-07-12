@@ -1,7 +1,11 @@
 //担当
 //伊藤直樹
 
-//ヒット時ゲージを加算するクラス
+//-----------------------------------------------------
+//電力ゲージ加算Notify
+//
+//攻撃が命中している場合だけ電力ゲージを加算する
+//-----------------------------------------------------
 
 #pragma once
 
@@ -9,19 +13,17 @@
 #include "Animation/AnimNotifies/AnimNotify.h"
 #include "AddElectGauge_Notifiy.generated.h"
 
-/**
- * 
- */
 UCLASS()
 class HIGHSPEEDACTIONGAME_API UAddElectGauge_Notifiy : public UAnimNotify
 {
 	GENERATED_BODY()
-	
-public:
-	virtual void Notify(USkeletalMeshComponent* MeshComp, UAnimSequenceBase* Animation) override;
 
-	//攻撃で増える量
-	// この攻撃で増えるゲージ量
+public:
+	//攻撃命中時に電力ゲージを加算
+	virtual void Notify(USkeletalMeshComponent* MeshComp, UAnimSequenceBase* Animation, const FAnimNotifyEventReference& EventReference) override;
+
+protected:
+	//この攻撃で加算する電力ゲージ量
 	UPROPERTY(EditAnywhere, BlueprintReadWrite, Category = "ElectroGauge")
-	float m_AddGaugeAmount;
+	float m_AddGaugeAmount = 0.f;
 };

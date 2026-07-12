@@ -2,7 +2,7 @@
 
 
 #include "../Enemy/EnemyBase.h"
-#include "../PlayerCharacter.h"
+#include "../PlayerCharacter/PlayerCharacter.h"
 #include "../GameUtility/GameUtility.h"
 #include "GameFramework/CharacterMovementComponent.h"
 #include "Perception/AIPerceptionComponent.h"
